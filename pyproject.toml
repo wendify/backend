@@ -1,0 +1,16 @@
+[project]
+name = "backend"
+version = "0.1.0"
+dependencies = ["requests"]
+
+[project.scripts]
+main = "main:main"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+indent-style = "tab"
+
+[tool.ruff.lint]
+extend-select = ["ANN", "I"]
