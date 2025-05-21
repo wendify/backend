@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-dependencies = ["requests"]
+dependencies = ["requests", "dotenv"]
 
 [project.scripts]
 main = "main:main"
