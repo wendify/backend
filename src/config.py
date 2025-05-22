@@ -5,8 +5,6 @@ import os
 load_dotenv()
 
 # Zugriff auf Variablen
-VARIABLE_1 = os.getenv("VARIABLE_1")
-
 LOG_DIR = "logs"
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
 LOG_LEVEL = os.getenv("LOG_LEVEL")
