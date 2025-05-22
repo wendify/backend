@@ -1,9 +1,10 @@
 [project]
 name = "backend"
 version = "0.1.0"
-dependencies = ["requests"]
+dependencies = ["pandas", "requests"]
 
 [project.scripts]
+download = "download:main"
 main = "main:main"
 
 [tool.ruff]

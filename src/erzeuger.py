@@ -2,15 +2,15 @@ import enum
 
 
 class ErzeugerArt(enum.IntEnum):
-	Braunkohle = 1223
-	Kernenergie = 1224
-	WindOffshore = 1225
-	Wasserkraft = 1226
-	SonstigeKonventionelle = 1227
-	SonstigeErneuerbare = 1228
-	Biomasse = 4066
-	WindOnshore = 4067
-	Photovoltaik = 4068
-	Steinkohle = 4069
-	Pumpspeicher = 4070
-	Erdgas = 4071
+	Braunkohle = 1001223
+	Kernenergie = 1001224
+	WindOffshore = 1001225
+	Wasserkraft = 1001226
+	SonstigeKonventionelle = 1001227
+	SonstigeErneuerbare = 1001228
+	Biomasse = 1004066
+	WindOnshore = 1004067
+	Photovoltaik = 1004068
+	Steinkohle = 1004069
+	Pumpspeicher = 1004070
+	Erdgas = 1004071
