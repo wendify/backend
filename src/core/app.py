@@ -1,5 +1,5 @@
 from core.logger import logger
-from core.data import loader
+from core.setup.smard import Smard
 
 
 class App:
@@ -9,6 +9,8 @@ class App:
     def run(self):
         logger.info('Starting')
 
-        loader.load_csv()
+        smard = Smard()
+
+        print(smard.df.info())
 
 
