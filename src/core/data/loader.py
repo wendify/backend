@@ -1,4 +1,3 @@
-import os
 import config
 from core.erzeugerArt import ErzeugerArt, _RohArten
 from core.data import csv_handler
@@ -6,9 +5,6 @@ import pandas as pd
 
 
 def load_csv():
-	# TODO: Refactoring später
-	installiert_path = config.FILE_STORAGE_PATH + "/installiert.csv"
-	realisiert_path = config.FILE_STORAGE_PATH + "/realisiert.csv"
 	# pickle_path = config.FILE_STORAGE_PATH + "/erzeuger_cleaned.pkl"
 
 	# Wenn Pickle existiert → direkt laden
@@ -19,17 +15,17 @@ def load_csv():
 	#     return df_pv
 
 	# Falls Pickle nicht existiert → CSV laden
-	if not csv_handler.check_csv_file_available(installiert_path):
+	if not config.INSTALLIERT_FILE.exists():
 		installiert_ids = [art.value.installiert for art in _RohArten]
-		csv_handler.download(installiert_path, config.SMARD_DOWNLOAD_URL, installiert_ids)
+		csv_handler.download(config.INSTALLIERT_FILE, config.SMARD_URL, installiert_ids)
 
-	if not csv_handler.check_csv_file_available(realisiert_path):
+	if not config.REALISIERT_FILE.exists():
 		realisiert_ids = [art.value.realisiert for art in _RohArten]
-		csv_handler.download(realisiert_path, config.SMARD_DOWNLOAD_URL, realisiert_ids)
+		csv_handler.download(config.REALISIERT_FILE, config.SMARD_URL, realisiert_ids)
 
 	# Parsen und bereinigen
-	installiert = csv_handler.clean_column_names(csv_handler.parse(installiert_path))
-	realisiert = csv_handler.clean_column_names(csv_handler.parse(realisiert_path))
+	installiert = csv_handler.clean_column_names(csv_handler.parse(config.INSTALLIERT_FILE))
+	realisiert = csv_handler.clean_column_names(csv_handler.parse(config.REALISIERT_FILE))
 
 	# Spalten extrahieren
 	# df_pv = df_cleaned[['datum_von', 'datum_bis', 'photovoltaik_mwh']].copy()

@@ -1,5 +1,5 @@
 import datetime
-import os
+import pathlib
 import re
 import sys
 import typing
@@ -7,7 +7,6 @@ import typing
 import pandas
 import requests
 
-from core import erzeuger
 from core.logger import logger
 
 
@@ -24,7 +23,7 @@ class Request(typing.TypedDict):
 	request_form: list[Form]
 
 
-def download(path: str, url: str, ids: list[int]) -> None:
+def download(path: pathlib.Path, url: str, ids: list[int]) -> None:
 	form: Form = {
 		"format": "CSV",
 		"language": "de",
@@ -47,7 +46,7 @@ def download(path: str, url: str, ids: list[int]) -> None:
 			file.write(response.content)
 
 
-def parse(path: str) -> pandas.DataFrame:
+def parse(path: pathlib.Path) -> pandas.DataFrame:
 	try:
 		frame = pandas.read_csv(path, decimal=",", na_values=["-"], sep=";", thousands=".")
 	except FileNotFoundError:
@@ -59,10 +58,6 @@ def parse(path: str) -> pandas.DataFrame:
 			frame[column] = pandas.to_datetime(frame[column], dayfirst=True)
 
 	return frame
-
-
-def check_csv_file_available(path: str) -> bool:
-	return os.path.exists(path)
 
 
 def clean_column_names(df: pandas.DataFrame):
