@@ -2,43 +2,26 @@
 
 The backend for Wendify.
 
-## Installation
+## Usage
 
-Create a virtual environment:
+1. Create and activate a [virtual environment][venv] to install everything locally
 
-```
-python.exe -m venv .venv
-```
-
-Start the venv:
-
-- Unix / macOS:
-
-  ```
-  source .venv/bin/activate
-  ```
-
-- Windows:
-
-  ```
-  .venv\Scripts\activate
-  ```
-
-Install dependencies:
+2. Install the dependencies:
 
 ```
 pip install -e .
 ```
 
-Copy & configure environment variables:
+3. Copy and configure the environment variables:
 
 ```
 cp .env.example .env
 ```
 
-Run the main script to start the backend:
+4. Run the main script to start the backend:
 
 ```
-cd src
-python.exe main.py
+main
 ```
+
+[venv]: https://packaging.python.org/guides/installing-using-pip-and-virtual-environments
