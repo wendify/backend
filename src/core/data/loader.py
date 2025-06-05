@@ -1,37 +1,44 @@
+import logging
+import pathlib
+import sys
+
+import pandas
+
 import config
-from core.erzeugerArt import ErzeugerArt, _RohArten
-from core.data import csv_handler
-import pandas as pd
+from core.data import handler
 
 
-def load_csv():
-	# pickle_path = config.FILE_STORAGE_PATH + "/erzeuger_cleaned.pkl"
-
-	# Wenn Pickle existiert → direkt laden
-	# if os.path.exists(pickle_path):
-	#     df_pv = pd.read_pickle(pickle_path)
-	#     print("Pickle geladen.")
-	#     print(df_pv.info())
-	#     return df_pv
-
-	# Falls Pickle nicht existiert → CSV laden
+def load_csv() -> tuple[pandas.DataFrame, pandas.DataFrame]:
 	if not config.INSTALLIERT_FILE.exists():
-		installiert_ids = [art.value.installiert for art in _RohArten]
-		csv_handler.download(config.INSTALLIERT_FILE, config.SMARD_URL, installiert_ids)
+		ids = [id + 3_000_000 for id in config.INSTALLIERT_IDS]
+		handler.download(config.INSTALLIERT_FILE, config.SMARD_URL, ids)
 
 	if not config.REALISIERT_FILE.exists():
-		realisiert_ids = [art.value.realisiert for art in _RohArten]
-		csv_handler.download(config.REALISIERT_FILE, config.SMARD_URL, realisiert_ids)
+		ids = [id + 1_000_000 for id in config.REALISIERT_IDS]
+		handler.download(config.REALISIERT_FILE, config.SMARD_URL, ids)
 
-	# Parsen und bereinigen
-	installiert = csv_handler.clean_column_names(csv_handler.parse(config.INSTALLIERT_FILE))
-	realisiert = csv_handler.clean_column_names(csv_handler.parse(config.REALISIERT_FILE))
+	installiert = read_csv(config.INSTALLIERT_FILE)
+	realisiert = read_csv(config.REALISIERT_FILE)
 
-	# Spalten extrahieren
-	# df_pv = df_cleaned[['datum_von', 'datum_bis', 'photovoltaik_mwh']].copy()
+	rename_columns(installiert)
+	rename_columns(realisiert)
 
-	# Als Pickle speichern
-	# df_pv.to_pickle(pickle_path)
-	# print("Pickle neu erstellt.")
-	# print(df_pv.info())
 	return installiert, realisiert
+
+
+def read_csv(path: pathlib.Path) -> pandas.DataFrame:
+	try:
+		frame = pandas.read_csv(path, decimal=",", na_values=["-"], sep=";", thousands=".")
+	except FileNotFoundError:
+		logging.error(f"CSV-Datei nicht gefunden: {path}")
+		sys.exit()
+
+	for column in frame.columns:
+		if column.startswith("Datum"):
+			frame[column] = pandas.to_datetime(frame[column], dayfirst=True)
+
+	return frame
+
+
+def rename_columns(frame: pandas.DataFrame) -> None:
+	frame.columns = [column.split(" [")[0] for column in frame.columns]

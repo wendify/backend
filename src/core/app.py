@@ -1,27 +1,28 @@
-from datetime import datetime
+import datetime
 import logging
 
+from core.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
-from core.erzeugerArt import ErzeugerArt
 
 
 class App:
-	def __init__(self):
-		pass
+	def __init__(self) -> None:
+		self.smard = Smard()
 
-	def run(self):
-		logging.info("Starting")
+	def run(self) -> None:
+		logging.info("Anwendung gestartet")
 
-		smard = Smard()
+		datum = datetime.datetime(2025, 1, 2, 12, 30)
+		erzeuger = self.smard.get_erzeuger(ErzeugerArt.Photovoltaik)
 
-		# Datenreihen für Photovoltaik
-		# smard.get_erzeuger(ErzeugerArt.Photovoltaik).verbrauch_realisiert
-		# smard.get_erzeuger(ErzeugerArt.Photovoltaik).verbrauch_installiert
-		gesuchtes_datum = datetime(2024, 1, 2, 12, 30)
-		print("\nRealisierter Wert:\n", smard.get_erzeuger(ErzeugerArt.Photovoltaik).verbrauch_realisiert.get_value_by_datetime(gesuchtes_datum))
-		print("\nInstallierter Wert:\n", smard.get_erzeuger(ErzeugerArt.Photovoltaik).e_norm.get_value_by_datetime(gesuchtes_datum))
+		print("\nInstallierter Wert:")
+		print(erzeuger.installiert.get_row(datum))
 
+		print("\nRealisierter Wert:")
+		print(erzeuger.realisiert.get_row(datum))
 
+		print("\nNormierter Wert:")
+		print(erzeuger.normiert.get_row(datum))
 
 		# Test zum plotten
 		# import matplotlib.pyplot as plt

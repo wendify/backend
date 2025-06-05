@@ -9,9 +9,9 @@ def getenv(key: str, *values: str) -> str:
 	value = os.getenv(key)
 
 	if value is None:
-		sys.exit(f"[ENV] Variable {key} nicht gefunden")
+		sys.exit(f"[ENV] Variable nicht gefunden: {key}")
 	elif len(values) > 0 and value not in values:
-		sys.exit(f"[ENV] Variable {key} ungültig, erlaubt sind: {', '.join(values)}")
+		sys.exit(f"[ENV] Variable ungültig: {key}, erlaubt sind: {', '.join(values)}")
 	else:
 		return value
 
@@ -27,6 +27,10 @@ LOGS_DIR = BASE_DIR.joinpath("logs")
 # Daten
 INSTALLIERT_FILE = DATA_DIR.joinpath("installiert.csv")
 REALISIERT_FILE = DATA_DIR.joinpath("realisiert.csv")
+
+# SMARD-Module
+INSTALLIERT_IDS = 186, 188, 189, 194, 198, 207, 3792, 4072, 4073, 4074, 4075, 4076
+REALISIERT_IDS = 1223, 1224, 1225, 1226, 1227, 1228, 4066, 4067, 4068, 4069, 4070, 4071
 
 # Logging
 LOG_FILE = LOGS_DIR.joinpath("backend.log")

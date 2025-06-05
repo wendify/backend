@@ -1,33 +1,30 @@
-from dataclasses import dataclass
-import pandas as pd
-from core.erzeugerArt import ErzeugerArt
+import enum
+
 from core.datenreihe import Datenreihe
 
-@dataclass
+
+class ErzeugerArt(enum.StrEnum):
+	Biomasse = "Biomasse"
+	Braunkohle = "Braunkohle"
+	Erdgas = "Erdgas"
+	Kernenergie = "Kernenergie"
+	Photovoltaik = "Photovoltaik"
+	Pumpspeicher = "Pumpspeicher"
+	SonstigeErneuerbare = "Sonstige Erneuerbare"
+	SonstigeKonventionelle = "Sonstige Konventionelle"
+	Steinkohle = "Steinkohle"
+	Wasserkraft = "Wasserkraft"
+	WindOffshore = "Wind Offshore"
+	WindOnshore = "Wind Onshore"
+
+
 class Erzeuger:
-    art: ErzeugerArt
-    verbrauch_realisiert: Datenreihe
-    verbrauch_installiert: Datenreihe
-    e_norm: Datenreihe
+	def __init__(self, art: ErzeugerArt, installiert: Datenreihe, realisiert: Datenreihe) -> None:
+		self.art = art
+		self.installiert = installiert
+		self.realisiert = realisiert
 
-    def __post_init__(self):
-        spalte = self.art.value  # z. B. 'Photovoltaik'
+		normiert = realisiert.df.copy()
+		normiert[self.art] /= installiert.df[self.art]
 
-        # Sortieren
-        df_real = self.verbrauch_realisiert.df.sort_values('Datum von').copy()
-        df_inst = self.verbrauch_installiert.df.sort_values('Datum von').copy()
-
-        # Merge: installierten Wert je Jahr zuordnen (backward match)
-        df_merged = pd.merge_asof(
-            df_real.assign(Zeit=df_real['Datum von']),
-            df_inst[['Datum von', spalte]].rename(columns={'Datum von': 'Zeit', spalte: f'{spalte}_jahr'}),
-            on='Zeit',
-            direction='backward'
-        )
-
-        # Normieren
-        df_merged[spalte] = df_merged[spalte] / df_merged[f'{spalte}_jahr']
-
-        # End-DataFrame
-        df_final = df_merged[['Datum von', 'Datum bis', spalte]].copy()
-        self.e_norm = Datenreihe(self.art, df_final)
+		self.normiert = Datenreihe(art, normiert)

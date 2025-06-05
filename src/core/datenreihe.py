@@ -1,17 +1,36 @@
-import pandas as pd
+import datetime
+import logging
+import typing
 
-from core.erzeuger import ErzeugerArt
-from datetime import datetime
+import pandas
+
+# Vermeiden von zyklischen Imports
+if typing.TYPE_CHECKING:
+	from core.erzeuger import ErzeugerArt
 
 
 class Datenreihe:
-    def __init__(self, art: ErzeugerArt, df):
-        self.art = art
-        self.df = df
+	def __init__(self, art: "ErzeugerArt", df: pandas.DataFrame) -> None:
+		self.art = art
+		self.df = df
 
-    def get_value_by_datetime(self, timestamp: datetime):
-        ts = pd.Timestamp(timestamp)
-        result = self.df.loc[self.df["Datum von"] == ts]
-        if result.empty:
-            raise KeyError(f"Kein Eintrag für {ts}")
-        return result.squeeze()
+	@property
+	def anfang(self) -> pandas.Series:
+		return self.df["Datum von"]
+
+	@property
+	def ende(self) -> pandas.Series:
+		return self.df["Datum bis"]
+
+	@property
+	def werte(self) -> pandas.Series:
+		return self.df[self.art]
+
+	def get_row(self, timestamp: datetime.datetime) -> pandas.Series:
+		result = self.df[(self.anfang <= timestamp) & (self.ende > timestamp)]
+
+		if result.empty:
+			logging.error(f"Kein Eintrag für {self.art}: {timestamp}")
+			raise KeyError
+
+		return result.iloc[0]

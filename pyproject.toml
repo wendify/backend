@@ -13,4 +13,4 @@ line-length = 100
 indent-style = "tab"
 
 [tool.ruff.lint]
-extend-select = ["ANN", "I"]
+extend-select = ["ANN", "I", "RSE"]
