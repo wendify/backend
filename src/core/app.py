@@ -24,19 +24,21 @@ class App:
 		print("\nNormierter Wert:")
 		print(erzeuger.normiert.get_row(datum))
 
-		# Test zum plotten
-		# import matplotlib.pyplot as plt
-		#
-		# current_erzeuger_art = ErzeugerArt.Photovoltaik
-		# tag = "2024-07-01"
-		#
-		# df = smard.get_erzeuger(current_erzeuger_art).verbrauch_realisiert.df
-		# df_am_tag = df[df["Datum von"].dt.date == pd.to_datetime(tag).date()]
-		#
-		# plt.figure(figsize=(10, 5))
-		# plt.plot(df_am_tag["Datum von"], df_am_tag[current_erzeuger_art], marker=".")
-		# plt.xlabel("Zeit")
-		# plt.ylabel(f"{current_erzeuger_art} (MW)")
-		# plt.title(f"{current_erzeuger_art} über die Zeit")
-		# plt.grid(True)
-		# plt.show()
+		# Plot erstellen, falls matplotlib installiert ist
+		try:
+			from matplotlib import pyplot
+		except ModuleNotFoundError:
+			return
+
+		daten = erzeuger.realisiert
+		daten.df = daten.df[daten.anfang.dt.date == datum.date()]
+
+		pyplot.figure(figsize=(10, 5))
+		pyplot.plot(daten.anfang, daten.werte, marker=".")
+
+		pyplot.title("Erzeugung über die Zeit")
+		pyplot.xlabel("Zeit")
+		pyplot.ylabel("Erzeugung (MW)")
+
+		pyplot.grid(True)
+		pyplot.show()

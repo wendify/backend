@@ -10,10 +10,11 @@ def getenv(key: str, *values: str) -> str:
 
 	if value is None:
 		sys.exit(f"[ENV] Variable nicht gefunden: {key}")
-	elif len(values) > 0 and value not in values:
+
+	if len(values) > 0 and value not in values:
 		sys.exit(f"[ENV] Variable ungültig: {key}, erlaubt sind: {', '.join(values)}")
-	else:
-		return value
+
+	return value
 
 
 # Env-Datei laden

@@ -4,7 +4,7 @@ version = "0.1.0"
 dependencies = ["dotenv", "pandas", "requests"]
 
 [project.optional-dependencies]
-dev = ["ruff"]
+dev = ["matplotlib", "ruff"]
 
 [project.scripts]
 main = "main:main"
