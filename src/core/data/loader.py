@@ -1,6 +1,6 @@
 import os
 import config
-from core.erzeugerArt import ErzeugerArt
+from core.erzeugerArt import ErzeugerArt, _RohArten
 from core.data import csv_handler
 import pandas as pd
 
@@ -20,11 +20,11 @@ def load_csv():
 
 	# Falls Pickle nicht existiert → CSV laden
 	if not csv_handler.check_csv_file_available(installiert_path):
-		installiert_ids = [art.value.installiert for art in ErzeugerArt]
+		installiert_ids = [art.value.installiert for art in _RohArten]
 		csv_handler.download(installiert_path, config.SMARD_DOWNLOAD_URL, installiert_ids)
 
 	if not csv_handler.check_csv_file_available(realisiert_path):
-		realisiert_ids = [art.value.realisiert for art in ErzeugerArt]
+		realisiert_ids = [art.value.realisiert for art in _RohArten]
 		csv_handler.download(realisiert_path, config.SMARD_DOWNLOAD_URL, realisiert_ids)
 
 	# Parsen und bereinigen

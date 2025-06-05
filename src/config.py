@@ -9,6 +9,8 @@ LOG_DIR = "logs"
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
 LOG_LEVEL = os.getenv("LOG_LEVEL")
 
+ENVIRONMENT_TYPE = os.getenv("ENVIRONMENT_TYPE").lower()
+
 SMARD_DOWNLOAD_URL = os.getenv("SMARD_DOWNLOAD_URL")
 
 # Basisverzeichnis für Daten wie bspw. .csv-Dateien
