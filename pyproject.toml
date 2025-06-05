@@ -3,6 +3,9 @@ name = "backend"
 version = "0.1.0"
 dependencies = ["dotenv", "pandas", "requests"]
 
+[project.optional-dependencies]
+dev = ["ruff"]
+
 [project.scripts]
 main = "main:main"
 

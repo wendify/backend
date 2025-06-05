@@ -14,7 +14,7 @@ def setup() -> None:
 
 	# Log-Datei
 	file_formatter = logging.Formatter(
-		"[%(asctime)s] [%(levelname)s] %(filename)s:%(lineno)d | %(message)s",
+		"[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s",
 		datefmt="%Y-%m-%d %H:%M:%S",
 	)
 

@@ -28,17 +28,17 @@ def load_csv() -> tuple[pandas.DataFrame, pandas.DataFrame]:
 
 def read_csv(path: pathlib.Path) -> pandas.DataFrame:
 	try:
-		frame = pandas.read_csv(path, decimal=",", na_values=["-"], sep=";", thousands=".")
+		df = pandas.read_csv(path, decimal=",", na_values=["-"], sep=";", thousands=".")
 	except FileNotFoundError:
 		logging.error(f"CSV-Datei nicht gefunden: {path}")
 		sys.exit()
 
-	for column in frame.columns:
+	for column in df.columns:
 		if column.startswith("Datum"):
-			frame[column] = pandas.to_datetime(frame[column], dayfirst=True)
+			df[column] = pandas.to_datetime(df[column], dayfirst=True)
 
-	return frame
+	return df
 
 
-def rename_columns(frame: pandas.DataFrame) -> None:
-	frame.columns = [column.split(" [")[0] for column in frame.columns]
+def rename_columns(df: pandas.DataFrame) -> None:
+	df.columns = [column.split(" [")[0] for column in df.columns]
