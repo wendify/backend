@@ -7,30 +7,30 @@ The backend for Wendify.
 Create a virtual environment:
 
 ```
-python -m venv .venv
+python.exe -m venv .venv
 ```
 
 Start the venv:
 
-- Unix / macOS
+- Unix / macOS:
 
   ```
   source .venv/bin/activate
   ```
 
-- Windows
+- Windows:
 
   ```
   .venv\Scripts\activate
   ```
 
-Install dependencies
+Install dependencies:
 
 ```
 pip install -e .
 ```
 
-Copy & configure environment variables
+Copy & configure environment variables:
 
 ```
 cp .env.example .env
@@ -39,5 +39,6 @@ cp .env.example .env
 Run the main script to start the backend:
 
 ```
-main
+cd src
+python.exe main.py
 ```
