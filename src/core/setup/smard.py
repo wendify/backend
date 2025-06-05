@@ -1,8 +1,8 @@
+import logging
 import pickle
 
 import config
 from core.data import loader
-from core.logger import logger
 from core.erzeugerArt import ErzeugerArt
 from core.erzeuger import Erzeuger
 from core.datenreihe import Datenreihe
@@ -19,7 +19,7 @@ class Smard:
 			with open(config.PICKLE_FILE, "rb") as f:
 				loaded = pickle.load(f)
 				self.__dict__.update(loaded.__dict__)
-			logger.info("Pickle geladen.")
+			logging.info("Pickle geladen.")
 			return
 
 		# Objekt neu aufbauen
@@ -31,7 +31,7 @@ class Smard:
 		# Pickle speichern
 		with open(config.PICKLE_FILE, "wb") as f:
 			pickle.dump(self, f)
-		logger.info("Pickle gespeichert.")
+		logging.info("Pickle gespeichert.")
 
 	def create_erzeuger(self):
 		for art in ErzeugerArt:
@@ -43,8 +43,5 @@ class Smard:
 			erzeuger = Erzeuger(art, realisiert_datenreihe, installiert_datenreihe, None)
 			self.erzeuger.append(erzeuger)
 
-	def get_erzeuger(self, art: ErzeugerArt) -> Erzeuger|None:
+	def get_erzeuger(self, art: ErzeugerArt) -> Erzeuger | None:
 		return next((e for e in self.erzeuger if e.art == art), None)
-
-
-

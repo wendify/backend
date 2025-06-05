@@ -1,13 +1,13 @@
-from core.logger import setup_logger
+from core import logger
 from core.app import App
 
 
 def main() -> None:
-    setup_logger()
-    app = App()
-    app.run()
-    # print(config.VARIABLE_1)
+	logger.setup()
+
+	app = App()
+	app.run()
 
 
 if __name__ == "__main__":
-    main()
+	main()

@@ -1,8 +1,6 @@
 from datetime import datetime
+import logging
 
-import pandas as pd
-
-from core.logger import logger
 from core.setup.smard import Smard
 from core.erzeugerArt import ErzeugerArt
 
@@ -12,7 +10,7 @@ class App:
 		pass
 
 	def run(self):
-		logger.info("Starting")
+		logging.info("Starting")
 
 		smard = Smard()
 

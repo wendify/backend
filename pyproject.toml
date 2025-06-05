@@ -7,7 +7,7 @@ dependencies = ["dotenv", "pandas", "requests"]
 main = "main:main"
 
 [tool.ruff]
-line-length = 120
+line-length = 100
 
 [tool.ruff.format]
 indent-style = "tab"

@@ -1,4 +1,5 @@
 import datetime
+import logging
 import pathlib
 import re
 import sys
@@ -6,8 +7,6 @@ import typing
 
 import pandas
 import requests
-
-from core.logger import logger
 
 
 class Form(typing.TypedDict):
@@ -39,7 +38,7 @@ def download(path: pathlib.Path, url: str, ids: list[int]) -> None:
 
 	with requests.post(url, json=request) as response:
 		if not response.ok:
-			logger.error(response.text)
+			logging.error(response.text)
 			sys.exit()
 
 		with open(path, "bw") as file:
@@ -50,7 +49,7 @@ def parse(path: pathlib.Path) -> pandas.DataFrame:
 	try:
 		frame = pandas.read_csv(path, decimal=",", na_values=["-"], sep=";", thousands=".")
 	except FileNotFoundError:
-		logger.error("File not found.")
+		logging.error("File not found.")
 		sys.exit()
 
 	for column in frame.columns:

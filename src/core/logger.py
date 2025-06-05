@@ -1,28 +1,27 @@
 import logging
-from logging.handlers import RotatingFileHandler
+
 import config
 
-logger = logging.getLogger()
 
+def setup() -> None:
+	logger = logging.getLogger()
 
-def setup_logger() -> logging.Logger:
-    logger.setLevel(config.LOG_LEVEL)
+	# Konsole
+	console_formatter = logging.Formatter("[%(levelname)s] %(message)s")
 
-    # File Handler (mit Rotation)
-    file_handler = RotatingFileHandler(config.LOG_FILE, maxBytes=5_000_000, backupCount=3)
-    file_formatter = logging.Formatter(
-        "[%(asctime)s] %(levelname)-5s | %(filename)s:%(lineno)d | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    file_handler.setFormatter(file_formatter)
+	console_handler = logging.StreamHandler()
+	console_handler.setFormatter(console_formatter)
 
-    # Optional: Konsole (für Debug/Entwicklung)
-    console_handler = logging.StreamHandler()
-    console_formatter = logging.Formatter("%(levelname)s: %(message)s")
-    console_handler.setFormatter(console_formatter)
+	# Log-Datei
+	file_formatter = logging.Formatter(
+		"[%(asctime)s] [%(levelname)s] %(filename)s:%(lineno)d | %(message)s",
+		datefmt="%Y-%m-%d %H:%M:%S",
+	)
 
-    if not logger.handlers:
-        logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
+	file_handler = logging.FileHandler(config.LOG_FILE)
+	file_handler.setFormatter(file_formatter)
 
-    return logger
+	# Logger anpassen
+	logger.addHandler(console_handler)
+	logger.addHandler(file_handler)
+	logger.setLevel(config.LOG_LEVEL)
