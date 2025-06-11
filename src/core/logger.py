@@ -1,4 +1,7 @@
 import logging
+import sys
+
+import coloredlogs
 
 import config
 
@@ -6,11 +9,29 @@ import config
 def setup() -> None:
 	logger = logging.getLogger()
 
-	# Konsole
-	console_formatter = logging.Formatter("[%(levelname)s] %(message)s")
+	# Trennzeile in Datei schreiben (vor neuen Logeinträgen)
+	with open(config.LOG_FILE, "a", encoding="utf-8") as f:
+		f.write("-" * 60 + "\n")
 
-	console_handler = logging.StreamHandler()
-	console_handler.setFormatter(console_formatter)
+	# Farbige Console prints
+	coloredlogs.install(
+		level='DEBUG',
+		logger=logger,
+		stream=sys.stdout,
+		fmt='[%(levelname)s] %(message)s',
+		level_styles={
+			'debug': {'color': 'blue'},
+			'info': {'color': 'green'},
+			'warning': {'color': 'yellow'},
+			'error': {'color': 'red'},
+			'critical': {'color': 'red', 'bold': True}
+		},
+		field_styles={
+			'levelname': None,
+			'asctime': None,
+			'message': None
+		}
+	)
 
 	# Log-Datei
 	file_formatter = logging.Formatter(
@@ -22,6 +43,5 @@ def setup() -> None:
 	file_handler.setFormatter(file_formatter)
 
 	# Logger anpassen
-	logger.addHandler(console_handler)
 	logger.addHandler(file_handler)
 	logger.setLevel(config.LOG_LEVEL)

@@ -1,10 +1,14 @@
 import logging
 import pickle
 
+import pandas
+from pandas.core.interchange.dataframe_protocol import DataFrame
+
 import config
 from core.data import loader
 from core.datenreihe import Datenreihe
-from core.erzeuger import Erzeuger, ErzeugerArt
+from core.erzeuger import Erzeuger
+from core.types import ErzeugerArt
 
 
 class Smard:
@@ -21,7 +25,9 @@ class Smard:
 
 		# Objekt neu aufbauen
 		self.erzeuger: list[Erzeuger] = []
-		self.installiert, self.realisiert = loader.load_csv()
+		installiert_tmp, realisiert_tmp = loader.load_csv()
+		self.installiert: DataFrame = installiert_tmp
+		self.realisiert: DataFrame = realisiert_tmp
 
 		# Baue Erzeuger
 		self.create_erzeuger()
