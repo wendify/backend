@@ -1,10 +1,16 @@
 [project]
 name = "backend"
 version = "0.1.0"
-dependencies = ["dotenv", "pandas", "requests", "coloredlogs"]
-
-[project.optional-dependencies]
-dev = ["matplotlib", "ruff"]
+dependencies = [
+	"coloredlogs",
+	"dotenv",
+	"fastapi",
+	"matplotlib",
+	"pandas",
+	"requests",
+	"ruff",
+	"uvicorn",
+]
 
 [project.scripts]
 main = "main:main"

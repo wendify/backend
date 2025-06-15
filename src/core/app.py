@@ -4,20 +4,32 @@ import logging
 from core.prognose.ausbaupfad import Ausbaupfad
 from core.prognose.datenpunkt import Datenpunkt
 from core.types import ErzeugerArt
+import fastapi
+import uvicorn
+
+import config
+from core.api import routes
+from core.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
 
 
 class App:
-    def __init__(self) -> None:
-        self.smard: Smard = Smard()
-        logging.info("Setup durchgeführt")
+	def __init__(self) -> None:
+		self.api = fastapi.FastAPI()
+		self.smard = Smard()
 
-    def run(self) -> None:
-        logging.info("Prognose wird gestartet...")
+		routes.setup(self.api, self.smard)
 
-        datum = datetime.datetime(2025, 1, 2, 12, 30)
-        erzeuger = self.smard.get_erzeuger(ErzeugerArt.Braunkohle)
-        erzeuger2 = self.smard.get_erzeuger(ErzeugerArt.Erdgas)
+	def run(self) -> None:
+		logging.info("Anwendung gestartet")
+		self.start()
+
+	def start(self) -> None:
+		uvicorn.run(self.api, host=config.API_HOST, port=config.API_PORT, log_level="error")
+
+	def test(self) -> None:
+		datum = datetime.datetime(2025, 1, 2, 12, 30)
+		erzeuger = self.smard.get_erzeuger(ErzeugerArt.Photovoltaik)
 
         datenpunkte: list[Datenpunkt] = [
             Datenpunkt(erzeuger.art, datetime.datetime(2026, 5, 1), 6000),
