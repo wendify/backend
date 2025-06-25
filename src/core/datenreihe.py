@@ -4,14 +4,12 @@ import typing
 
 import pandas
 
-# Vermeiden von zyklischen Imports
-if typing.TYPE_CHECKING:
-	from core.erzeuger import ErzeugerArt
+from core.types import ErzeugerArt
 
 
 class Datenreihe:
-	def __init__(self, art: "ErzeugerArt", df: pandas.DataFrame) -> None:
-		self.art = art
+	def __init__(self, art: ErzeugerArt, df: pandas.DataFrame) -> None:
+		self.art: ErzeugerArt = art
 		self.df = df
 
 	@property

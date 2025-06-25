@@ -28,7 +28,7 @@ def load_csv() -> tuple[pandas.DataFrame, pandas.DataFrame]:
 
 def read_csv(path: pathlib.Path) -> pandas.DataFrame:
 	try:
-		df = pandas.read_csv(path, decimal=",", na_values=["-"], sep=";", thousands=".")
+		df = pandas.read_csv(path, decimal=",", na_values=["-"], sep=";", thousands=".").fillna(0)
 	except FileNotFoundError:
 		logging.error(f"CSV-Datei nicht gefunden: {path}")
 		sys.exit()
