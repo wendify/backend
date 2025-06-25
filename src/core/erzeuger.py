@@ -10,5 +10,6 @@ class Erzeuger:
 
 		normiert = realisiert.df.copy()
 		normiert[self.art] /= installiert.df[self.art]
+		normiert = normiert.fillna(0)
 
 		self.normiert: Datenreihe = Datenreihe(art, normiert)
