@@ -42,6 +42,10 @@ ENVIRONMENT = getenv("ENVIRONMENT", "dev", "prod")
 PICKLE_FILE = DATA_DIR.joinpath("smard.pkl")
 SMARD_URL = getenv("SMARD_URL")
 
+# Prognose/Extrapolation
+# Mögliche Werte: 'last' (ffill), 'daily' (Tagesprofil), 'yearly' (Jahresprofil)
+ENORM_EXTRAPOLATION_MODE = os.getenv("ENORM_EXTRAPOLATION_MODE", "daily")
+
 # Verzeichnisse erstellen
 DATA_DIR.mkdir(exist_ok=True)
 LOGS_DIR.mkdir(exist_ok=True)

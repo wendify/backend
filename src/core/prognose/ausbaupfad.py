@@ -1,10 +1,11 @@
 import logging
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 
 from core.prognose.datenpunkt import Datenpunkt
+import config
 from core.setup.smard import Smard
 from core.types import ErzeugerArt
 from core.datenreihe import Datenreihe
@@ -51,32 +52,215 @@ def ergaenze_erzeuger_datenpunkte(datenpunkte: list[Datenpunkt], smard: Smard) -
     return datenpunkte
 
 
-def create_prognose_datenreihen(datenpunkte: list[Datenpunkt], smard:Smard) -> list[Datenreihe]:
+def _determine_base_frequency(df: pd.DataFrame) -> timedelta:
+    """Ermittelt die Zeitauflösung aus einer bestehenden SMARD-Datenreihe.
+
+    Warum: Wir wollen die Prognose auf dem gleichen Raster wie die SMARD-Daten
+    (typisch 15 Minuten) berechnen, um problemlos `ENorm` und `Heute` zu
+    kombinieren.
+    """
+    if len(df) >= 2:
+        return df["Datum von"].iloc[1] - df["Datum von"].iloc[0]
+    # Fallback: 15 Minuten, falls nicht genug Zeilen vorhanden sind
+    return timedelta(minutes=15)
+
+
+def _build_time_grid(base_df: pd.DataFrame, end: datetime) -> pd.DataFrame:
+    """Erstellt ein durchgehendes Zeitraster [Datum von, Datum bis) bis `end`.
+
+    Warum: Für die Multiplikation mit `ENorm` und die Addition zu `Heute`
+    brauchen wir eine konsistente Timeline, die ggf. über die SMARD-Daten
+    hinaus bis zum letzten Datenpunkt verlängert wird.
+    """
+    start: datetime = base_df["Datum von"].iloc[0]
+    freq: timedelta = _determine_base_frequency(base_df)
+
+    # Erzeuge Liste der "Datum von"-Zeitpunkte
+    times = pd.date_range(start=start, end=end - freq, freq=freq)
+    grid = pd.DataFrame({
+        "Datum von": times,
+    })
+    grid["Datum bis"] = grid["Datum von"] + freq
+    return grid
+def _extrapolate_enorm(
+    base_df_enorm: pd.DataFrame,
+    art: ErzeugerArt,
+    target_times: pd.Series,
+    mode: str,
+) -> pd.Series:
+    """Erzeuge ENorm-Serie auf target_times mit frei wählbarer Extrapolation.
+
+    mode:
+      - 'last': letzter bekannter Wert (ffill)
+      - 'daily': Tagesprofil (Mittelwert je Zeit-des-Tages über Historie)
+      - 'yearly': Jahresprofil (Mittelwert je Tag-des-Jahres und Zeit-des-Tages)
+    """
+    base = base_df_enorm.set_index("Datum von")[art]
+    # Sicherstellen, dass der Index eindeutig ist (Duplicates mitteln)
+    if base.index.has_duplicates:
+        base = base.groupby(level=0).mean().sort_index()
+    else:
+        base = base.sort_index()
+    # Erst auf Zielzeiten reindizieren (innerhalb Historie ffill)
+    series = base.reindex(target_times, method="ffill")
+
+    last_time = base_df_enorm["Datum von"].iloc[-1]
+    future_index = series.index[series.index > last_time]
+    if len(future_index) == 0 or mode == "last":
+        return series
+
+    if mode == "daily":
+        # Mittelwert je Zeit-des-Tages
+        time_profile = base.groupby(base.index.map(lambda ts: ts.time())).mean()
+        mapped = [float(time_profile.get(ts.time(), 0.0)) for ts in future_index]
+        series.loc[future_index] = mapped
+        return series
+
+    if mode == "yearly":
+        # Mittelwert je (Tag-des-Jahres, Zeit)
+        def key(ts):
+            return (ts.timetuple().tm_yday, ts.time())
+
+        grouped = base.groupby(base.index.map(key)).mean()
+        # Fallback-Profil nur nach Zeit-des-Tages
+        time_profile = base.groupby(base.index.map(lambda x: x.time())).mean()
+        def lookup(ts) -> float:
+            k = (ts.timetuple().tm_yday, ts.time())
+            if k in grouped:
+                return float(grouped[k])
+            # Fallback: nur Zeit-des-Tages
+            return float(time_profile.get(ts.time(), 0.0))
+
+        series.loc[future_index] = [lookup(ts) for ts in future_index]
+        return series
+
+    # Unbekannter Modus → default: last
+    return series
+
+
+def _ensure_unique_datetime_index(series: pd.Series) -> pd.Series:
+    """Sorgt für eindeutige Zeitindizes, indem Duplikate gemittelt werden."""
+    if series.index.has_duplicates:
+        return series.groupby(level=0).mean().sort_index()
+    return series.sort_index()
+
+
+def _interpolate_absolute_installiert(
+    times: pd.Series,
+    baseline_time: datetime,
+    baseline_installiert: float,
+    dps_sorted: list[Datenpunkt],
+) -> pd.Series:
+    """Erzeugt eine Zeitreihe absolut installierter Leistung, vollständig
+    vektorisiert mit pandas.
+
+    Warum: Statt pythonischer Schleifen werden die Kontrollpunkte (Baseline
+    + Ziel-Datenpunkte) als Zeitreihe angelegt, auf das Zielraster reindiziert
+    und mit `interpolate(method="time")` linear über die Zeit gefüllt. Ränder
+    werden per ffill/bfill konstant gehalten.
+    """
+    control_times: list[datetime] = [baseline_time] + [dp.datetime for dp in dps_sorted]
+    control_values: list[float] = [float(baseline_installiert)] + [float(dp.installiert) for dp in dps_sorted]
+
+    control = pd.Series(control_values, index=pd.to_datetime(control_times)).sort_index()
+    target_index = pd.DatetimeIndex(pd.to_datetime(times))
+    union_index = target_index.union(control.index)
+
+    # Interpolation auf vereinheitlichtem Index; anschließend auf das Zielraster zurück
+    interpolated = (
+        control.reindex(union_index).sort_index()
+        .interpolate(method="time")
+        .reindex(target_index)
+        .ffill()
+        .bfill()
+    )
+
+    return interpolated
+
+
+def create_prognose_datenreihen(datenpunkte: list[Datenpunkt], smard: Smard) -> list[Datenreihe]:
+    """Erzeugt finale Prognose-Datenreihen je ErzeugerArt.
+
+    Warum: Dies bündelt den im Plan vorgesehenen Rechenweg:
+    1) Datenpunkte gruppieren und zu einer absoluten Ausbau-Zielkurve interpolieren
+    2) Delta zur heutigen installierten Leistung bilden
+    3) Delta mit `ENorm` multiplizieren (liefert zusätzliche Erzeugung)
+    4) Mit heutiger Erzeugung (`Heute`) addieren → Prognose
+    """
+    if smard is None:
+        raise ValueError("Smard darf nicht None sein")
+
     # Gruppiere Datenpunkte nach ErzeugerArt
     gruppiert: dict[ErzeugerArt, list[Datenpunkt]] = defaultdict(list)
     for dp in datenpunkte:
         gruppiert[dp.art].append(dp)
 
-    erzeuger_datenreihen: list[Datenreihe] = []
+    result: list[Datenreihe] = []
 
-    for art, dps in gruppiert.items():
-        # Sortiere die Datenpunkte chronologisch
+    for art in ErzeugerArt:
+        dps = gruppiert.get(art, [])
         dps.sort(key=lambda dp: dp.datetime)
 
-        daten = []
-        for i in range(len(dps)):
-            start = dps[i].datetime
-            end = dps[i + 1].datetime if i + 1 < len(dps) else start  # oder ein sinnvolles Enddatum setzen
-            daten.append({
-                "Datum von": start,
-                "Datum bis": end,
-                art: dps[i].installiert
-            })
+        erzeuger = smard.get_erzeuger(art)
+        base_df_enorm = erzeuger.normiert.df.copy()
+        base_df_heute = erzeuger.realisiert.df.copy()
+        base_df_installiert = erzeuger.installiert.df.copy()
 
-        df = pd.DataFrame(daten)
-        erzeuger_datenreihen.append(Datenreihe(art, df))
+        # Basiswerte
+        baseline_time: datetime = base_df_installiert["Datum von"].iloc[-1]
+        baseline_installiert: float = float(base_df_installiert[art].iloc[-1])
 
-    return erzeuger_datenreihen
+        # Ziel-Horizont: bis zum letzten Datenpunkt, mindestens bis Ende der vorhandenen Daten
+        horizon_dp: datetime = dps[-1].datetime if len(dps) > 0 else base_df_enorm["Datum bis"].iloc[-1]
+        horizon: datetime = max(horizon_dp, base_df_enorm["Datum bis"].iloc[-1])
+
+        # Einheitliches Zeitraster erzeugen und ENorm/Heute darauf legen
+        grid = _build_time_grid(base_df_enorm, end=horizon)
+        freq = _determine_base_frequency(base_df_enorm)
+
+        # ENorm auf das Grid abbilden mit konfigurierbarer Extrapolation
+        enorm_series = _extrapolate_enorm(
+            base_df_enorm=base_df_enorm,
+            art=art,
+            target_times=grid["Datum von"],
+            mode=getattr(config, "ENORM_EXTRAPOLATION_MODE", "daily"),
+        )
+
+        # Heute (realisierte Erzeugung) auf das Grid; Zukunft = ENorm * baseline_installiert
+        heute_series_base = base_df_heute.set_index("Datum von")[art]
+        heute_series_base = _ensure_unique_datetime_index(heute_series_base)
+        heute_series = heute_series_base.reindex(grid["Datum von"], method="ffill")
+        last_real_time: datetime = heute_series_base.index[-1]
+        # Index-basierte Auswahl, damit die Zuordnung exakt auf den Zeitstempeln passiert
+        future_index = heute_series.index[heute_series.index > last_real_time]
+        # Für Zeiten nach dem letzten Realwert verwenden wir als Basis die
+        # typische Lastform ENorm multipliziert mit der Basis-Installationsleistung
+        heute_series.loc[future_index] = enorm_series.loc[future_index] * baseline_installiert
+
+        # Interpolation absolute installierte Leistung und Delta zur Basis
+        abs_installiert_series = _interpolate_absolute_installiert(
+            times=grid["Datum von"],
+            baseline_time=baseline_time,
+            baseline_installiert=baseline_installiert,
+            dps_sorted=dps,
+        )
+        delta_installiert_series = abs_installiert_series - baseline_installiert
+
+        # Ausbau-Erzeugung = DeltaInstalliert * ENorm
+        ausbau_erzeugung_series = delta_installiert_series * enorm_series
+
+        # Finale Prognose = Basis (Heute bzw. ENorm*Baseline) + Ausbau-Erzeugung
+        # Dies entspricht ENorm * (BaselineInstalliert + DeltaInstalliert)
+        prognose_series = heute_series + ausbau_erzeugung_series
+
+        df = pd.DataFrame({
+            "Datum von": grid["Datum von"],
+            "Datum bis": grid["Datum bis"],
+            art: prognose_series.values,
+        })
+        result.append(Datenreihe(art, df))
+
+    return result
 
 
 class Ausbaupfad:
@@ -89,21 +273,30 @@ class Ausbaupfad:
         datenpunkte = ergaenze_erzeuger_datenpunkte(datenpunkte, smard)
         self.datenpunkte = datenpunkte
 
+        # Finale Prognose-Datenreihen je ErzeugerArt erzeugen
         self.prognose_datenreihen: list[Datenreihe] = create_prognose_datenreihen(self.datenpunkte, smard)
-        # Interpolation der Datenpunkte
-        # self.interpolate_datenpunkte()
+        # Optional: weitere post-Processing-Schritte könnten hier folgen
 
     def interpolate_datenpunkte(self) -> None:
-        """Interpoliert die Datenpunkte für eine glattere Kurve."""
-        for art in ErzeugerArt:
-            datenreihe = self.get_erzeuger(art)
-            if not datenreihe:
-                continue
+        """(Veraltet) Platzhalter der alten Planung. Logik erfolgt nun in
+        `create_prognose_datenreihen`. Diese Methode bleibt aus API-Gründen
+        bestehen."""
 
-            # Interpolation durchführen
-            interpolierte_werte = self.interpolate(datenreihe)
-            self.datenreihen_interpoliert.append(interpolierte_werte)
+    def get_erzeuger(self, art: ErzeugerArt) -> list[Datenpunkt]:
+        """Gibt die übergebenen Datenpunkte für eine ErzeugerArt zurück.
 
-    def get_erzeuger(self, art: ErzeugerArt) -> Datenreihe:
-        """Gibt alle Datenpunkte für einen bestimmten Erzeuger zurück."""
+        Warum: Hilfsfunktion, um z. B. im UI die Eingabepunkte pro Art
+        anzuzeigen. Für Prognosedaten nutze `get_prognose_datenreihe`.
+        """
         return [dp for dp in self.datenpunkte if dp.art == art]
+
+    def get_prognose_datenreihe(self, art: ErzeugerArt) -> Datenreihe | None:
+        """Gibt die finale Prognose-Datenreihe für eine ErzeugerArt zurück.
+
+        Warum: Dies ist der in der Planung vorgesehene Output je Erzeuger, der
+        bereits `Heute + (Interpolierter Ausbau × ENorm)` enthält.
+        """
+        for dr in self.prognose_datenreihen:
+            if dr.art == art:
+                return dr
+        return None
