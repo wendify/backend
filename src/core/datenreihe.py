@@ -1,6 +1,5 @@
 import datetime
 import logging
-import typing
 
 import pandas
 

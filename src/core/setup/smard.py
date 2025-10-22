@@ -1,7 +1,6 @@
 import logging
 import pickle
 
-import pandas
 from pandas.core.interchange.dataframe_protocol import DataFrame
 
 import config
