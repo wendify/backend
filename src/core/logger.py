@@ -15,22 +15,18 @@ def setup() -> None:
 
 	# Farbige Console prints
 	coloredlogs.install(
-		level='DEBUG',
+		level="DEBUG",
 		logger=logger,
 		stream=sys.stdout,
-		fmt='[%(levelname)s] %(message)s',
+		fmt="[%(levelname)s] %(message)s",
 		level_styles={
-			'debug': {'color': 'blue'},
-			'info': {'color': 'green'},
-			'warning': {'color': 'yellow'},
-			'error': {'color': 'red'},
-			'critical': {'color': 'red', 'bold': True}
+			"debug": {"color": "blue"},
+			"info": {"color": "green"},
+			"warning": {"color": "yellow"},
+			"error": {"color": "red"},
+			"critical": {"color": "red", "bold": True},
 		},
-		field_styles={
-			'levelname': None,
-			'asctime': None,
-			'message': None
-		}
+		field_styles={"levelname": None, "asctime": None, "message": None},
 	)
 
 	# Log-Datei

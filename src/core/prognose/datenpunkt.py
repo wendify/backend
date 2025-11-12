@@ -6,6 +6,6 @@ from core.types import ErzeugerArt
 
 @dataclass
 class Datenpunkt:
-    art: ErzeugerArt
-    datetime: datetime
-    installiert: float
+	art: ErzeugerArt
+	datetime: datetime
+	installiert: float

@@ -27,4 +27,3 @@ __all__ = [
 	"Simulation",
 	"simulate_event",
 ]
-
