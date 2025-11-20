@@ -29,7 +29,7 @@ def download(path: pathlib.Path, url: str, ids: list[int]) -> None:
 		"region": "DE",
 		"resolution": "quarterhour",
 		"timestamp_from": int(datetime.datetime(2024, 1, 1).timestamp()) * 1000,
-		"timestamp_to": int(datetime.datetime(2025, 1, 1).timestamp()) * 1000,
+		"timestamp_to": int(datetime.datetime(2025, 10, 31).timestamp()) * 1000,
 	}
 
 	request: Request = {

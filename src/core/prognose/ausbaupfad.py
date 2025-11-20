@@ -49,6 +49,25 @@ def ergaenze_erzeuger_datenpunkte(datenpunkte: list[Datenpunkt], smard: Smard) -
 			)
 			datenpunkte.append(neuer_dp)
 
+	# Vorhandene Erzeuger müssen ebenfalls bis zum max_datetime reichen
+	# Wir füllen diese mit dem letzten Wert auf (konstant fortgeschrieben)
+	gruppiert = defaultdict(list)
+	for dp in datenpunkte:
+		gruppiert[dp.art].append(dp)
+
+	for art in vorhandene_arten:
+		dps = gruppiert[art]
+		if not dps:
+			continue
+		dps.sort(key=lambda dp: dp.datetime)
+		last_dp = dps[-1]
+
+		if last_dp.datetime < max_datetime:
+			neuer_dp = Datenpunkt(
+				art, datetime=max_datetime, installiert=last_dp.installiert
+			)
+			datenpunkte.append(neuer_dp)
+
 	return datenpunkte
 
 
