@@ -3,7 +3,12 @@ from core.types import ErzeugerArt
 
 
 class Erzeuger:
-	def __init__(self, art: ErzeugerArt, installiert: Datenreihe, realisiert: Datenreihe) -> None:
+	def __init__(
+		self,
+		art: ErzeugerArt,
+		installiert: Datenreihe[ErzeugerArt],
+		realisiert: Datenreihe[ErzeugerArt],
+	) -> None:
 		self.art = art
 		self.installiert = installiert
 		self.realisiert = realisiert

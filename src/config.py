@@ -5,6 +5,7 @@ import sys
 import dotenv
 
 
+# Lädt Env-Wert mit vorgegebenen erlaubten Werten
 def getenv(key: str, *values: str) -> str:
 	value = os.getenv(key)
 
@@ -17,6 +18,7 @@ def getenv(key: str, *values: str) -> str:
 	return value
 
 
+# Lädt Env-Wert als Ganzzahl
 def getint(key: str) -> int:
 	value = getenv(key)
 
@@ -37,10 +39,12 @@ LOGS_DIR = BASE_DIR.joinpath("logs")
 # Daten
 INSTALLIERT_FILE = DATA_DIR.joinpath("installiert.csv")
 REALISIERT_FILE = DATA_DIR.joinpath("realisiert.csv")
+VERBRAUCHT_FILE = DATA_DIR.joinpath("verbraucht.csv")
 
 # SMARD-Module
 INSTALLIERT_IDS = 186, 188, 189, 194, 198, 207, 3792, 4072, 4073, 4074, 4075, 4076
 REALISIERT_IDS = 1223, 1224, 1225, 1226, 1227, 1228, 4066, 4067, 4068, 4069, 4070, 4071
+VERBRAUCHT_IDS = 410, 4359, 4387, 5140
 
 # FastAPI-Konfiguration
 API_HOST = getenv("API_HOST")
@@ -51,13 +55,10 @@ LOG_FILE = LOGS_DIR.joinpath("backend.log")
 LOG_LEVEL = getenv("LOG_LEVEL")
 
 # Sonstiges
+ENORM_EXTRAPOLATION_MODE = getenv("ENORM_EXTRAPOLATION_MODE", "daily", "last", "yearly")
 ENVIRONMENT = getenv("ENVIRONMENT", "dev", "prod")
 PICKLE_FILE = DATA_DIR.joinpath("smard.pkl")
 SMARD_URL = getenv("SMARD_URL")
-
-# Prognose/Extrapolation
-# Mögliche Werte: 'last' (ffill), 'daily' (Tagesprofil), 'yearly' (Jahresprofil)
-ENORM_EXTRAPOLATION_MODE = os.getenv("ENORM_EXTRAPOLATION_MODE", "daily")
 
 # Verzeichnisse erstellen
 DATA_DIR.mkdir(exist_ok=True)

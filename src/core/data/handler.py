@@ -6,6 +6,8 @@ import typing
 
 import requests
 
+import config
+
 
 class Form(typing.TypedDict):
 	format: str
@@ -21,7 +23,7 @@ class Request(typing.TypedDict):
 	request_form: list[Form]
 
 
-def download(path: pathlib.Path, url: str, ids: list[int]) -> None:
+def download(path: pathlib.Path, ids: list[int]) -> None:
 	form: Form = {
 		"format": "CSV",
 		"language": "de",
@@ -36,7 +38,7 @@ def download(path: pathlib.Path, url: str, ids: list[int]) -> None:
 		"request_form": [form],
 	}
 
-	with requests.post(url, json=request) as response:
+	with requests.post(config.SMARD_URL, json=request) as response:
 		if not response.ok:
 			logging.error(response.text)
 			sys.exit()

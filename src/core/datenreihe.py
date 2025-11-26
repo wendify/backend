@@ -1,33 +1,31 @@
-import datetime
 import logging
+from datetime import datetime
 
-import pandas
-
-from core.types import ErzeugerArt
+from pandas import DataFrame, Series
 
 
-class Datenreihe:
-	def __init__(self, art: ErzeugerArt, df: pandas.DataFrame) -> None:
-		self.art: ErzeugerArt = art
+class Datenreihe[T]:
+	def __init__(self, art: T, df: DataFrame) -> None:
+		self.art = art
 		self.df = df
 
 	@property
-	def anfang(self) -> pandas.Series:
+	def anfang(self) -> Series:
 		return self.df["Datum von"]
 
 	@property
-	def ende(self) -> pandas.Series:
+	def ende(self) -> Series:
 		return self.df["Datum bis"]
 
 	@property
-	def werte(self) -> pandas.Series:
+	def werte(self) -> Series:
 		return self.df[self.art]
 
-	def get_row(self, timestamp: datetime.datetime) -> pandas.Series:
+	def get_row(self, timestamp: datetime) -> Series:
 		result = self.df[(self.anfang <= timestamp) & (self.ende > timestamp)]
 
 		if result.empty:
 			logging.error(f"Kein Eintrag für {self.art}: {timestamp}")
-			raise KeyError
+			raise KeyError(timestamp)
 
 		return result.iloc[0]

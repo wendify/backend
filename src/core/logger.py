@@ -1,43 +1,42 @@
 import logging
-import sys
+import os
 
 import coloredlogs
 
 import config
 
 
+# Führt das Setup für den Logger durch
 def setup() -> None:
+	# Root-Logger holen
 	logger = logging.getLogger()
 
-	# Trennzeile in Datei schreiben (vor neuen Logeinträgen)
-	with open(config.LOG_FILE, "a", encoding="utf-8") as f:
-		f.write("-" * 60 + "\n")
+	# Trennzeile in Datei schreiben, falls existent
+	if config.LOG_FILE.exists():
+		with open(config.LOG_FILE, "r+") as file:
+			lines = file.readlines()
 
-	# Farbige Console prints
-	coloredlogs.install(
-		level="DEBUG",
-		logger=logger,
-		stream=sys.stdout,
-		fmt="[%(levelname)s] %(message)s",
-		level_styles={
-			"debug": {"color": "blue"},
-			"info": {"color": "green"},
-			"warning": {"color": "yellow"},
-			"error": {"color": "red"},
-			"critical": {"color": "red", "bold": True},
-		},
-		field_styles={"levelname": None, "asctime": None, "message": None},
-	)
+			if lines and not lines[-1].startswith("-"):
+				file.seek(0, os.SEEK_END)
+				file.write("-" * 60 + "\n")
 
-	# Log-Datei
-	file_formatter = logging.Formatter(
-		"[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s",
-		datefmt="%Y-%m-%d %H:%M:%S",
-	)
+	# Farbige Logs in der Konsole installieren
+	styles = {
+		"debug": {"color": "blue"},
+		"error": {"color": "red"},
+		"info": {"color": "green"},
+		"warning": {"color": "yellow"},
+	}
 
-	file_handler = logging.FileHandler(config.LOG_FILE)
-	file_handler.setFormatter(file_formatter)
+	coloredlogs.install(fmt="[%(levelname)s] %(message)s", level_styles=styles)
+
+	# Logs in der Log-Datei installieren
+	format = "[%(asctime)s] [%(filename)s:%(lineno)d] [%(levelname)s] %(message)s"
+	formatter = logging.Formatter(format, datefmt="%Y-%m-%d %H:%M:%S")
+
+	handler = logging.FileHandler(config.LOG_FILE)
+	handler.setFormatter(formatter)
 
 	# Logger anpassen
-	logger.addHandler(file_handler)
+	logger.addHandler(handler)
 	logger.setLevel(config.LOG_LEVEL)

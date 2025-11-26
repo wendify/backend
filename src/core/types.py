@@ -1,7 +1,7 @@
-import enum
+from enum import StrEnum
 
 
-class ErzeugerArt(enum.StrEnum):
+class ErzeugerArt(StrEnum):
 	Biomasse = "Biomasse"
 	Braunkohle = "Braunkohle"
 	Erdgas = "Erdgas"
@@ -14,3 +14,10 @@ class ErzeugerArt(enum.StrEnum):
 	Wasserkraft = "Wasserkraft"
 	WindOffshore = "Wind Offshore"
 	WindOnshore = "Wind Onshore"
+
+
+class VerbraucherArt(StrEnum):
+	Netzlast = "Netzlast"
+	NetzlastInklPumpspeicher = "Netzlast inkl. Pumpspeicher"
+	Pumpspeicher = "Pumpspeicher"
+	Residuallast = "Residuallast"

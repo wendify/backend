@@ -1,13 +1,11 @@
 import logging
 import pickle
 
-from pandas.core.interchange.dataframe_protocol import DataFrame
-
 import config
 from core.data import loader
 from core.datenreihe import Datenreihe
 from core.erzeuger import Erzeuger
-from core.types import ErzeugerArt
+from core.types import ErzeugerArt, VerbraucherArt
 
 
 class Smard:
@@ -24,12 +22,13 @@ class Smard:
 
 		# Objekt neu aufbauen
 		self.erzeuger: list[Erzeuger] = []
-		installiert_tmp, realisiert_tmp = loader.load_csv()
-		self.installiert: DataFrame = installiert_tmp
-		self.realisiert: DataFrame = realisiert_tmp
+		self.verbraucher: list[Datenreihe[VerbraucherArt]] = []
+
+		self.installiert, self.realisiert, self.verbraucht = loader.load_csv()
 
 		# Baue Erzeuger
 		self.create_erzeuger()
+		self.create_verbraucher()
 
 		# Pickle speichern
 		if config.ENVIRONMENT == "prod":
@@ -54,4 +53,18 @@ class Smard:
 			return next(e for e in self.erzeuger if e.art == art)
 		except StopIteration:
 			logging.error(f"Erzeuger nicht gefunden: {art}")
-			raise KeyError
+			raise KeyError(art)
+
+	def create_verbraucher(self) -> None:
+		for art in VerbraucherArt:
+			df = self.verbraucht[["Datum von", "Datum bis", art]]
+			verbraucher = Datenreihe(art, df)
+
+			self.verbraucher.append(verbraucher)
+
+	def get_verbraucher(self, art: VerbraucherArt) -> Datenreihe[VerbraucherArt]:
+		try:
+			return next(v for v in self.verbraucher if v.art == art)
+		except StopIteration:
+			logging.error(f"Verbraucher nicht gefunden: {art}")
+			raise KeyError(art)

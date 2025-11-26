@@ -8,22 +8,34 @@ import config
 from core.data import handler
 
 
-def load_csv() -> tuple[pandas.DataFrame, pandas.DataFrame]:
+def load_csv() -> tuple[pandas.DataFrame, pandas.DataFrame, pandas.DataFrame]:
 	if not config.INSTALLIERT_FILE.exists():
 		ids = [id + 3_000_000 for id in config.INSTALLIERT_IDS]
-		handler.download(config.INSTALLIERT_FILE, config.SMARD_URL, ids)
+
+		logging.info(f"Lädt herunter: {config.INSTALLIERT_FILE}")
+		handler.download(config.INSTALLIERT_FILE, ids)
 
 	if not config.REALISIERT_FILE.exists():
 		ids = [id + 1_000_000 for id in config.REALISIERT_IDS]
-		handler.download(config.REALISIERT_FILE, config.SMARD_URL, ids)
+
+		logging.info(f"Lädt herunter: {config.REALISIERT_FILE}")
+		handler.download(config.REALISIERT_FILE, ids)
+
+	if not config.VERBRAUCHT_FILE.exists():
+		ids = [id + 5_000_000 for id in config.VERBRAUCHT_IDS]
+
+		logging.info(f"Lädt herunter: {config.VERBRAUCHT_FILE}")
+		handler.download(config.VERBRAUCHT_FILE, ids)
 
 	installiert = read_csv(config.INSTALLIERT_FILE)
 	realisiert = read_csv(config.REALISIERT_FILE)
+	verbraucht = read_csv(config.VERBRAUCHT_FILE)
 
 	rename_columns(installiert)
 	rename_columns(realisiert)
+	rename_columns(verbraucht)
 
-	return installiert, realisiert
+	return installiert, realisiert, verbraucht
 
 
 def read_csv(path: pathlib.Path) -> pandas.DataFrame:
