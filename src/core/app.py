@@ -9,10 +9,12 @@ import uvicorn
 import config
 from core.api import routes
 from core.erzeuger import ErzeugerArt
+from core.types import VerbraucherArt
 
 # Project-specific imports
+from core import plot_helper
 from core.prognose.ausbaupfad import Ausbaupfad
-from core.prognose.datenpunkt import Datenpunkt
+from core.prognose.datenpunkt import ErzeugerDatenpunkt, VerbraucherDatenpunkt
 from core.setup.smard import Smard
 from core.simulation import Simulation
 
@@ -31,7 +33,8 @@ class App:
 
 	def run(self) -> None:
 		logging.info("Anwendung gestartet")
-		self.test()
+		self.plot_erzeuger()
+		# self.test()
 
 	def start(self) -> None:
 		uvicorn.run(self.api, host=config.API_HOST, port=config.API_PORT, log_level="error")
@@ -64,11 +67,11 @@ class App:
 		# current_erzeuger2_installiert = erzeuger2.installiert.werte.max()
 
 		# # Define future capacity milestones for the selected generator type
-		# # Each Datenpunkt: (generator type, date from which valid, installed MW)
-		# datenpunkte: list[Datenpunkt] = [
-		# 	Datenpunkt(erzeuger.art, datetime.datetime(2026, 5, 1), current_erzeuger_installiert/4),
-		# 	Datenpunkt(erzeuger.art, datetime.datetime(2027, 11, 1), current_erzeuger_installiert*2),
-		# 	Datenpunkt(erzeuger2.art, datetime.datetime(2028, 5, 1), current_erzeuger2_installiert/4),
+		# # Each ErzeugerDatenpunkt: (generator type, date from which valid, installed MW)
+		# datenpunkte: list[ErzeugerDatenpunkt] = [
+		# 	ErzeugerDatenpunkt(erzeuger.art, datetime.datetime(2026, 5, 1), current_erzeuger_installiert/4),
+		# 	ErzeugerDatenpunkt(erzeuger.art, datetime.datetime(2027, 11, 1), current_erzeuger_installiert*2),
+		# 	ErzeugerDatenpunkt(erzeuger2.art, datetime.datetime(2028, 5, 1), current_erzeuger2_installiert/4),
 		# ]
 
 		# Erzeuger laden
@@ -86,7 +89,7 @@ class App:
 		kernenergie = self.smard.get_erzeuger(ErzeugerArt.Kernenergie)
 		sonst_konv  = self.smard.get_erzeuger(ErzeugerArt.SonstigeKonventionelle)
 
-		datenpunkte: list[Datenpunkt] = [
+		datenpunkte: list[ErzeugerDatenpunkt] = [
 
 			# ============================================================
 			# ERNEUERBARE ENERGIEN – Ausbaupfad (kumulierte installierte Leistung, MW)
@@ -94,39 +97,39 @@ class App:
 			# ============================================================
 
 			# Photovoltaik (starker Ausbau, EEG-Ziele angelehnt)
-			Datenpunkt(pv.art, datetime.datetime(2026, 1, 1), 130_000),  # ~130 GW
-			Datenpunkt(pv.art, datetime.datetime(2030, 1, 1), 215_000),  # ~215 GW
-			Datenpunkt(pv.art, datetime.datetime(2035, 1, 1), 260_000),  # ~260 GW
+			ErzeugerDatenpunkt(pv.art, datetime.datetime(2026, 1, 1), 130_000),  # ~130 GW
+			ErzeugerDatenpunkt(pv.art, datetime.datetime(2030, 1, 1), 215_000),  # ~215 GW
+			ErzeugerDatenpunkt(pv.art, datetime.datetime(2035, 1, 1), 260_000),  # ~260 GW
 
 			# Wind Onshore (moderater bis starker Ausbau)
-			Datenpunkt(wind_on.art, datetime.datetime(2026, 1, 1), 70_000),   # ~70 GW
-			Datenpunkt(wind_on.art, datetime.datetime(2030, 1, 1), 85_000),   # ~85 GW
-			Datenpunkt(wind_on.art, datetime.datetime(2035, 1, 1), 100_000),  # ~100 GW
+			ErzeugerDatenpunkt(wind_on.art, datetime.datetime(2026, 1, 1), 70_000),   # ~70 GW
+			ErzeugerDatenpunkt(wind_on.art, datetime.datetime(2030, 1, 1), 85_000),   # ~85 GW
+			ErzeugerDatenpunkt(wind_on.art, datetime.datetime(2035, 1, 1), 100_000),  # ~100 GW
 
 			# Wind Offshore (Ausbau, aber etwas unter Zielpfad wegen Realisierungsrisiken)
-			Datenpunkt(wind_off.art, datetime.datetime(2026, 1, 1), 11_000),  # ~11 GW
-			Datenpunkt(wind_off.art, datetime.datetime(2030, 1, 1), 25_000),  # ~25 GW
-			Datenpunkt(wind_off.art, datetime.datetime(2035, 1, 1), 40_000),  # ~40 GW
+			ErzeugerDatenpunkt(wind_off.art, datetime.datetime(2026, 1, 1), 11_000),  # ~11 GW
+			ErzeugerDatenpunkt(wind_off.art, datetime.datetime(2030, 1, 1), 25_000),  # ~25 GW
+			ErzeugerDatenpunkt(wind_off.art, datetime.datetime(2035, 1, 1), 40_000),  # ~40 GW
 
 			# Wasserkraft (nahezu konstant, nur geringer Zubau möglich)
-			Datenpunkt(wasser.art, datetime.datetime(2026, 1, 1), 5_600),
-			Datenpunkt(wasser.art, datetime.datetime(2030, 1, 1), 5_800),
-			Datenpunkt(wasser.art, datetime.datetime(2035, 1, 1), 6_000),
+			ErzeugerDatenpunkt(wasser.art, datetime.datetime(2026, 1, 1), 5_600),
+			ErzeugerDatenpunkt(wasser.art, datetime.datetime(2030, 1, 1), 5_800),
+			ErzeugerDatenpunkt(wasser.art, datetime.datetime(2035, 1, 1), 6_000),
 
 			# Biomasse (leicht rückläufig / plateau, EEG sieht kaum Ausbau vor)
-			Datenpunkt(biomasse.art, datetime.datetime(2026, 1, 1), 9_500),
-			Datenpunkt(biomasse.art, datetime.datetime(2030, 1, 1), 9_000),
-			Datenpunkt(biomasse.art, datetime.datetime(2035, 1, 1), 8_000),
+			ErzeugerDatenpunkt(biomasse.art, datetime.datetime(2026, 1, 1), 9_500),
+			ErzeugerDatenpunkt(biomasse.art, datetime.datetime(2030, 1, 1), 9_000),
+			ErzeugerDatenpunkt(biomasse.art, datetime.datetime(2035, 1, 1), 8_000),
 
 			# Pumpspeicher (leichter Ausbau + Modernisierung)
-			Datenpunkt(pumpsp.art, datetime.datetime(2026, 1, 1), 10_000),
-			Datenpunkt(pumpsp.art, datetime.datetime(2030, 1, 1), 11_000),
-			Datenpunkt(pumpsp.art, datetime.datetime(2035, 1, 1), 13_000),
+			ErzeugerDatenpunkt(pumpsp.art, datetime.datetime(2026, 1, 1), 10_000),
+			ErzeugerDatenpunkt(pumpsp.art, datetime.datetime(2030, 1, 1), 11_000),
+			ErzeugerDatenpunkt(pumpsp.art, datetime.datetime(2035, 1, 1), 13_000),
 
 			# Sonstige Erneuerbare (Geothermie, Deponiegas etc.)
-			Datenpunkt(sonst_ern.art, datetime.datetime(2026, 1, 1), 1_500),
-			Datenpunkt(sonst_ern.art, datetime.datetime(2030, 1, 1), 3_000),
-			Datenpunkt(sonst_ern.art, datetime.datetime(2035, 1, 1), 5_000),
+			ErzeugerDatenpunkt(sonst_ern.art, datetime.datetime(2026, 1, 1), 1_500),
+			ErzeugerDatenpunkt(sonst_ern.art, datetime.datetime(2030, 1, 1), 3_000),
+			ErzeugerDatenpunkt(sonst_ern.art, datetime.datetime(2035, 1, 1), 5_000),
 
 
 			# ============================================================
@@ -134,29 +137,29 @@ class App:
 			# ============================================================
 
 			# Erdgas (etwas Ausbau H2-ready, später leichte Reduktion)
-			Datenpunkt(erdgas.art, datetime.datetime(2026, 1, 1), 36_000),
-			Datenpunkt(erdgas.art, datetime.datetime(2030, 1, 1), 40_000),
-			Datenpunkt(erdgas.art, datetime.datetime(2035, 1, 1), 38_000),
+			ErzeugerDatenpunkt(erdgas.art, datetime.datetime(2026, 1, 1), 36_000),
+			ErzeugerDatenpunkt(erdgas.art, datetime.datetime(2030, 1, 1), 40_000),
+			ErzeugerDatenpunkt(erdgas.art, datetime.datetime(2035, 1, 1), 38_000),
 
 			# Steinkohle (deutlicher Rückbau, Ausstieg ≈ 2030)
-			Datenpunkt(steinkohle.art, datetime.datetime(2026, 1, 1), 12_000),
-			Datenpunkt(steinkohle.art, datetime.datetime(2030, 1, 1), 3_000),
-			Datenpunkt(steinkohle.art, datetime.datetime(2035, 1, 1), 0),
+			ErzeugerDatenpunkt(steinkohle.art, datetime.datetime(2026, 1, 1), 12_000),
+			ErzeugerDatenpunkt(steinkohle.art, datetime.datetime(2030, 1, 1), 3_000),
+			ErzeugerDatenpunkt(steinkohle.art, datetime.datetime(2035, 1, 1), 0),
 
 			# Braunkohle (Rückbau bis spätestens 2038, 2035 fast aus dem Markt)
-			Datenpunkt(braunkohle.art, datetime.datetime(2026, 1, 1), 13_000),
-			Datenpunkt(braunkohle.art, datetime.datetime(2030, 1, 1), 8_000),
-			Datenpunkt(braunkohle.art, datetime.datetime(2035, 1, 1), 2_000),
+			ErzeugerDatenpunkt(braunkohle.art, datetime.datetime(2026, 1, 1), 13_000),
+			ErzeugerDatenpunkt(braunkohle.art, datetime.datetime(2030, 1, 1), 8_000),
+			ErzeugerDatenpunkt(braunkohle.art, datetime.datetime(2035, 1, 1), 2_000),
 
 			# Kernenergie (bleibt bei 0 – Ausstieg vollzogen)
-			Datenpunkt(kernenergie.art, datetime.datetime(2026, 1, 1), 0),
-			Datenpunkt(kernenergie.art, datetime.datetime(2030, 1, 1), 0),
-			Datenpunkt(kernenergie.art, datetime.datetime(2035, 1, 1), 0),
+			ErzeugerDatenpunkt(kernenergie.art, datetime.datetime(2026, 1, 1), 0),
+			ErzeugerDatenpunkt(kernenergie.art, datetime.datetime(2030, 1, 1), 0),
+			ErzeugerDatenpunkt(kernenergie.art, datetime.datetime(2035, 1, 1), 0),
 
 			# Sonstige konventionelle (Öl, Abfall, Industrieanlagen etc.)
-			Datenpunkt(sonst_konv.art, datetime.datetime(2026, 1, 1), 4_000),
-			Datenpunkt(sonst_konv.art, datetime.datetime(2030, 1, 1), 3_500),
-			Datenpunkt(sonst_konv.art, datetime.datetime(2035, 1, 1), 3_000),
+			ErzeugerDatenpunkt(sonst_konv.art, datetime.datetime(2026, 1, 1), 4_000),
+			ErzeugerDatenpunkt(sonst_konv.art, datetime.datetime(2030, 1, 1), 3_500),
+			ErzeugerDatenpunkt(sonst_konv.art, datetime.datetime(2035, 1, 1), 3_000),
 		]
 
 
@@ -437,3 +440,206 @@ class App:
 		# Short textual summary to quickly verify size and covered time span
 		print("\nPrognose-Form:", prognose.df.shape)
 		print("Zeitraum:", prognose.df["Datum von"].iloc[0], "→", prognose.df["Datum bis"].iloc[-1])
+
+	def plot_verbraucher(self) -> None:
+		"""
+		Plot Verbraucher-Prognose (Netzlast).
+		Gleiche Logik wie Erzeuger-Prognose.
+		"""
+		logging.info("Verbraucher wird geplottet...")
+		
+		# Verbraucher-Datenpunkte definieren (Netzlast-Prognose)
+		verbraucher_datenpunkte: list[VerbraucherDatenpunkt] = [
+			VerbraucherDatenpunkt(VerbraucherArt.Netzlast, datetime.datetime(2026, 1, 1), self.smard.get_verbraucher(VerbraucherArt.Netzlast).df["Netzlast"].mean()),
+			VerbraucherDatenpunkt(VerbraucherArt.Netzlast, datetime.datetime(2030, 1, 1), self.smard.get_verbraucher(VerbraucherArt.Netzlast).df["Netzlast"].mean()*2),
+			VerbraucherDatenpunkt(VerbraucherArt.Netzlast, datetime.datetime(2035, 1, 1), self.smard.get_verbraucher(VerbraucherArt.Netzlast).df["Netzlast"].mean()),
+		]
+
+		print(self.smard.get_verbraucher(VerbraucherArt.Netzlast).df["Netzlast"].mean())
+
+		# Ausbaupfad erstellen (leere Erzeuger-Liste, nur Verbraucher)
+		ausbaupfad = Ausbaupfad([], verbraucher_datenpunkte, smard=self.smard)
+		
+		# Verbraucher-Prognose-Datenreihen holen und zusammenführen
+		datenreihen = ausbaupfad.prognose_verbraucher_datenreihen
+		df_merged = plot_helper.merge_datenreihen(datenreihen)
+		
+		# Auf Tages-Daten resamplen für bessere Sichtbarkeit
+		df_daily = plot_helper.resample_dataframe(df_merged, "1w")
+		
+		# Lineplot erstellen
+		plot_helper.create_lineplot(
+			df=df_daily,
+			title="Verbraucher-Prognose (Netzlast)",
+			ylabel="Leistung [MW]",
+			show_markers=False,
+		)
+		plot_helper.show_plots()
+
+	def plot_examples(self) -> None:
+		"""
+		Demonstrates how to use the plot_helper module for plotting Datenreihen.
+		
+		This method shows:
+		1) How to merge multiple Datenreihen into one DataFrame
+		2) How to create a stackplot (stacked area chart)
+		3) How to create a lineplot
+		4) How to add vertical marker lines
+		5) How to resample data to different resolutions
+		6) How to filter specific columns for plotting
+		"""
+		logging.info("Plot-Beispiele werden erstellt...")
+
+		# ---------------------------------------------------------------
+		# Step 1: Build an Ausbaupfad with example data points
+		# ---------------------------------------------------------------
+		
+		# Load some generators from SMARD
+		pv = self.smard.get_erzeuger(ErzeugerArt.Photovoltaik)
+		wind_on = self.smard.get_erzeuger(ErzeugerArt.WindOnshore)
+		wind_off = self.smard.get_erzeuger(ErzeugerArt.WindOffshore)
+		braunkohle = self.smard.get_erzeuger(ErzeugerArt.Braunkohle)
+
+		# Define some example data points for the forecast
+		datenpunkte: list[ErzeugerDatenpunkt] = [
+			# Photovoltaik expansion
+			ErzeugerDatenpunkt(pv.art, datetime.datetime(2026, 1, 1), 130_000),
+			ErzeugerDatenpunkt(pv.art, datetime.datetime(2030, 1, 1), 215_000),
+			ErzeugerDatenpunkt(pv.art, datetime.datetime(2035, 1, 1), 260_000),
+			
+			# Wind Onshore expansion
+			ErzeugerDatenpunkt(wind_on.art, datetime.datetime(2026, 1, 1), 70_000),
+			ErzeugerDatenpunkt(wind_on.art, datetime.datetime(2030, 1, 1), 85_000),
+			ErzeugerDatenpunkt(wind_on.art, datetime.datetime(2035, 1, 1), 100_000),
+			
+			# Wind Offshore expansion
+			ErzeugerDatenpunkt(wind_off.art, datetime.datetime(2026, 1, 1), 11_000),
+			ErzeugerDatenpunkt(wind_off.art, datetime.datetime(2030, 1, 1), 25_000),
+			ErzeugerDatenpunkt(wind_off.art, datetime.datetime(2035, 1, 1), 40_000),
+			
+			# Braunkohle phase-out
+			ErzeugerDatenpunkt(braunkohle.art, datetime.datetime(2026, 1, 1), 13_000),
+			ErzeugerDatenpunkt(braunkohle.art, datetime.datetime(2030, 1, 1), 8_000),
+			ErzeugerDatenpunkt(braunkohle.art, datetime.datetime(2035, 1, 1), 2_000),
+		]
+
+		# Build the Ausbaupfad
+		ausbaupfad = Ausbaupfad(datenpunkte, smard=self.smard)
+
+		# ---------------------------------------------------------------
+		# Step 2: Merge Datenreihen using plot_helper
+		# ---------------------------------------------------------------
+		
+		# Get all prognose Datenreihen from the Ausbaupfad
+		datenreihen = ausbaupfad.prognose_datenreihen
+		
+		# Use plot_helper to merge them into a single DataFrame
+		df_merged = plot_helper.merge_datenreihen(datenreihen)
+		
+		print("Merged DataFrame shape:", df_merged.shape)
+		print("Columns:", list(df_merged.columns))
+
+		# ---------------------------------------------------------------
+		# Step 3: Create a color map for consistent coloring
+		# ---------------------------------------------------------------
+		
+		# Get sorted column names
+		columns = sorted(df_merged.columns)
+		
+		# Create a color map that assigns a unique color to each generator type
+		color_map = plot_helper.get_color_map(columns)
+
+		# ---------------------------------------------------------------
+		# Step 4: Create a stackplot showing all generators
+		# ---------------------------------------------------------------
+		
+		# Resample to weekly data for better visibility
+		df_weekly = plot_helper.resample_dataframe(df_merged, "1w")
+		
+		# Create the stackplot
+		fig1, ax1 = plot_helper.create_stackplot(
+			df=df_weekly,
+			title="Prognose: Stromerzeugung (Stackplot)",
+			xlabel="Zeit",
+			ylabel="Leistung [MW]",
+			color_map=color_map,
+			figsize=(12, 6),
+		)
+		
+		# Find the end of historical SMARD data
+		smard_end = pv.realisiert.df["Datum von"].iloc[-1]
+		
+		# Add a vertical line to mark the end of historical data
+		plot_helper.add_vertical_line(
+			ax=ax1,
+			x_value=smard_end,
+			color="red",
+			linestyle="--",
+			linewidth=2.0,
+			label="Ende Historie",
+		)
+		
+		# Add vertical lines for each forecast data point
+		dp_times = sorted({dp.datetime for dp in datenpunkte})
+		plot_helper.add_multiple_vertical_lines(
+			ax=ax1,
+			x_values=dp_times,
+			color="black",
+			linestyle=":",
+			alpha=0.5,
+		)
+
+		# ---------------------------------------------------------------
+		# Step 5: Create a filtered stackplot (only renewables)
+		# ---------------------------------------------------------------
+		
+		# Filter to show only selected generators
+		renewables = [
+			ErzeugerArt.Photovoltaik,
+			ErzeugerArt.WindOnshore,
+			ErzeugerArt.WindOffshore,
+		]
+		df_renewables = plot_helper.filter_columns(df_weekly, renewables)
+		
+		# Create a second stackplot with only renewables
+		fig2, ax2 = plot_helper.create_stackplot(
+			df=df_renewables,
+			title="Prognose: Erneuerbare Energien",
+			ylabel="Leistung [MW]",
+			color_map=color_map,
+			figsize=(10, 5),
+		)
+		
+		# Add end of history marker
+		plot_helper.add_vertical_line(ax2, smard_end, color="red", linestyle="--")
+
+		# ---------------------------------------------------------------
+		# Step 6: Create a lineplot for comparison
+		# ---------------------------------------------------------------
+		
+		# Resample to daily data for the lineplot
+		df_daily = plot_helper.resample_dataframe(df_merged, "1d")
+		
+		# Filter to only Photovoltaik and Braunkohle for clear comparison
+		comparison_columns = [ErzeugerArt.Photovoltaik, ErzeugerArt.Braunkohle]
+		df_comparison = plot_helper.filter_columns(df_daily, comparison_columns)
+		
+		# Create a lineplot
+		fig3, ax3 = plot_helper.create_lineplot(
+			df=df_comparison,
+			title="Vergleich: Photovoltaik vs. Braunkohle",
+			ylabel="Leistung [MW]",
+			color_map=color_map,
+			figsize=(10, 5),
+			show_markers=False,  # Too many points for markers
+		)
+		
+		# Add end of history marker
+		plot_helper.add_vertical_line(ax3, smard_end, color="red", linestyle="--")
+
+		# ---------------------------------------------------------------
+		# Step 7: Show all plots
+		# ---------------------------------------------------------------
+		
+		print("\nPlots werden angezeigt...")
+		plot_helper.show_plots()

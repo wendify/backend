@@ -8,6 +8,48 @@ from core.erzeuger import Erzeuger
 from core.types import ErzeugerArt, VerbraucherArt
 
 
+def get_regulation(art: ErzeugerArt) -> float:
+	"""Get the regulation value for an ErzeugerArt.
+	
+	Regulation represents how much the output can be changed up or down
+	within one time step, as a fraction of the installed capacity.
+	
+	Args:
+		art: The type of energy producer
+		
+	Returns:
+		Regulation value between 0.0 and 1.0
+	"""
+	if art == ErzeugerArt.Erdgas:
+		return 1.0
+	elif art == ErzeugerArt.Photovoltaik:
+		return 0.0
+	elif art == ErzeugerArt.Steinkohle:
+		return 0.05
+	elif art == ErzeugerArt.Braunkohle:
+		return 0.02
+	elif art == ErzeugerArt.Kernenergie:
+		return 0.02
+	elif art == ErzeugerArt.WindOffshore:
+		return 0
+	elif art == ErzeugerArt.WindOnshore:
+		return 0
+	elif art == ErzeugerArt.Wasserkraft:
+		return 0
+	elif art == ErzeugerArt.Biomasse:
+		return 0.4
+	elif art == ErzeugerArt.Pumpspeicher:
+		return 1
+	elif art == ErzeugerArt.SonstigeErneuerbare:
+		return 0
+	elif art == ErzeugerArt.SonstigeKonventionelle:
+		return 0.2
+	else:
+		# Default regulation for other types
+		# Can be adjusted as needed
+		return 0.0
+
+
 class Smard:
 	def __init__(self) -> None:
 		# Wenn Pickle existiert, direkt laden
@@ -44,7 +86,8 @@ class Smard:
 
 			installiert = Datenreihe(art, df_installiert)
 			realisiert = Datenreihe(art, df_realisiert)
-			erzeuger = Erzeuger(art, installiert, realisiert)
+			regulation = get_regulation(art)
+			erzeuger = Erzeuger(art, installiert, realisiert, regulation)
 
 			self.erzeuger.append(erzeuger)
 

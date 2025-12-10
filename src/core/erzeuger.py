@@ -8,10 +8,12 @@ class Erzeuger:
 		art: ErzeugerArt,
 		installiert: Datenreihe[ErzeugerArt],
 		realisiert: Datenreihe[ErzeugerArt],
+		regulation: float,
 	) -> None:
 		self.art = art
 		self.installiert = installiert
 		self.realisiert = realisiert
+		self.regulation = regulation
 
 		normiert = realisiert.df.copy()
 		normiert[self.art] /= installiert.df[self.art]

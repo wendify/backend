@@ -6,7 +6,7 @@ import pandas as pd
 try:
     from core.erzeuger import ErzeugerArt
     from core.prognose.ausbaupfad import Ausbaupfad
-    from core.prognose.datenpunkt import Datenpunkt
+    from core.prognose.datenpunkt import ErzeugerDatenpunkt
     from core.setup.smard import Smard
     from core.simulation import Simulation
 except ImportError as e:
@@ -50,7 +50,7 @@ def main():
         new_date = st.date_input("Datum", datetime.date(2026, 1, 1))
         new_value = st.number_input("Installierte Leistung (MW)", min_value=0.0, value=1000.0, step=100.0)
         
-        submitted = st.form_submit_button("Datenpunkt hinzufügen")
+        submitted = st.form_submit_button("ErzeugerDatenpunkt hinzufügen")
         if submitted and dp_erzeuger_name:
             st.session_state["datenpunkte_list"].append({
                 "erzeuger": dp_erzeuger_name,
@@ -60,7 +60,7 @@ def main():
             st.success(f"Hinzugefügt für {dp_erzeuger_name}!")
 
     # Display current list
-    st.sidebar.write("Aktuelle Datenpunkte:")
+    st.sidebar.write("Aktuelle ErzeugerDatenpunkte:")
     if st.session_state["datenpunkte_list"]:
         for i, dp in enumerate(st.session_state["datenpunkte_list"]):
             st.sidebar.text(f"{dp['erzeuger']} | {dp['date']}: {dp['value']} MW")
@@ -68,7 +68,7 @@ def main():
                 st.session_state["datenpunkte_list"].pop(i)
                 st.rerun()
     else:
-        st.sidebar.info("Keine Datenpunkte definiert.")
+        st.sidebar.info("Keine ErzeugerDatenpunkte definiert.")
 
     # --- Main Content ---
     
@@ -95,7 +95,7 @@ def main():
                 
                 # Filter datenpunkte for this erzeuger
                 erzeuger_dps = [
-                    Datenpunkt(art, datetime.datetime(d['date'].year, d['date'].month, d['date'].day), d['value'])
+                    ErzeugerDatenpunkt(art, datetime.datetime(d['date'].year, d['date'].month, d['date'].day), d['value'])
                     for d in st.session_state["datenpunkte_list"]
                     if d['erzeuger'] == name
                 ]
@@ -103,7 +103,7 @@ def main():
                 # Fallback if no points defined
                 if not erzeuger_dps:
                      current_max = erzeuger.installiert.werte.max()
-                     erzeuger_dps = [Datenpunkt(art, datetime.datetime(2030, 1, 1), current_max)]
+                     erzeuger_dps = [ErzeugerDatenpunkt(art, datetime.datetime(2030, 1, 1), current_max)]
 
                 ausbaupfad = Ausbaupfad(erzeuger_dps, smard=smard)
                 prognose = ausbaupfad.get_prognose_datenreihe(art)

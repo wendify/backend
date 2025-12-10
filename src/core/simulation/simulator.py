@@ -74,7 +74,8 @@ class Simulation:
 
 		# Create new Erzeuger with modified realized energy
 		# The normiert will be recalculated automatically
-		return Erzeuger(erzeuger.art, erzeuger.installiert, modified_realisiert)
+		# Preserve the regulation value from the original erzeuger
+		return Erzeuger(erzeuger.art, erzeuger.installiert, modified_realisiert, erzeuger.regulation)
 
 
 def simulate_event(

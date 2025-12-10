@@ -73,7 +73,7 @@ def setup(app: FastAPI, smard: Smard) -> None:
 
 		for dp in pfad.datenpunkte:
 			datenpunkte.append(
-				datenpunkt.Datenpunkt(art=dp.erzeuger, datetime=dp.zeitpunkt, installiert=dp.wert)
+				datenpunkt.ErzeugerDatenpunkt(art=dp.erzeuger, datetime=dp.zeitpunkt, installiert=dp.wert)
 			)
 
 		konstruiert = ausbaupfad.Ausbaupfad(datenpunkte, smard=smard)
