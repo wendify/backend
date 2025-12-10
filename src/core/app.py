@@ -33,7 +33,7 @@ class App:
 
 	def run(self) -> None:
 		logging.info("Anwendung gestartet")
-		self.plot_erzeuger()
+		self.plot_verbraucher()
 		# self.test()
 
 	def start(self) -> None:
