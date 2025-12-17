@@ -1,6 +1,7 @@
 # Standard library imports
 import datetime
 import logging
+import time
 
 import fastapi
 import pandas as pd
@@ -17,6 +18,7 @@ from core.prognose.ausbaupfad import Ausbaupfad
 from core.prognose.datenpunkt import ErzeugerDatenpunkt, VerbraucherDatenpunkt
 from core.setup.smard import Smard
 from core.simulation import Simulation
+from core.simulation.stack_model import apply_stack_model_to_ausbaupfad
 
 
 class App:
@@ -33,8 +35,8 @@ class App:
 
 	def run(self) -> None:
 		logging.info("Anwendung gestartet")
-		self.plot_verbraucher()
-		# self.test()
+		# self.plot_verbraucher()
+		self.test()
 
 	def start(self) -> None:
 		uvicorn.run(self.api, host=config.API_HOST, port=config.API_PORT, log_level="error")
@@ -49,6 +51,7 @@ class App:
 		"""
 		# Start message so it is clear in the logs what happens now
 		logging.info("Prognose wird gestartet...")
+		test_start = time.time()
 
 		# Example timestamp used in the commented debug section below
 		datum = datetime.datetime(2025, 1, 2, 12, 30)
@@ -162,9 +165,20 @@ class App:
 			ErzeugerDatenpunkt(sonst_konv.art, datetime.datetime(2035, 1, 1), 3_000),
 		]
 
+		# Verbraucher-Datenpunkte definieren (Netzlast-Prognose)
+		verbraucher_datenpunkte: list[VerbraucherDatenpunkt] = [
+			VerbraucherDatenpunkt(VerbraucherArt.Netzlast, datetime.datetime(2026, 1, 1), self.smard.get_verbraucher(VerbraucherArt.Netzlast).df["Netzlast"].mean()),
+			VerbraucherDatenpunkt(VerbraucherArt.Netzlast, datetime.datetime(2030, 1, 1), self.smard.get_verbraucher(VerbraucherArt.Netzlast).df["Netzlast"].mean()*2),
+			VerbraucherDatenpunkt(VerbraucherArt.Netzlast, datetime.datetime(2035, 1, 1), self.smard.get_verbraucher(VerbraucherArt.Netzlast).df["Netzlast"].mean()),
+		]
+
 
 		# Build the Ausbaupfad from those points and pass SMARD for required context/data
-		ausbaupfad = Ausbaupfad(datenpunkte, smard=self.smard)
+		ausbaupfad_start = time.time()
+		ausbaupfad = Ausbaupfad(datenpunkte, verbraucher_datenpunkte, smard=self.smard)
+		ausbaupfad_end = time.time()
+		ausbaupfad_duration = ausbaupfad_end - ausbaupfad_start
+		print(f"Ausbaupfad erstellt in {ausbaupfad_duration:.2f} Sekunden")
 		# Quick debug print: shows the internal list of Datenpunkte
 		print(ausbaupfad.datenpunkte)
 		# Create a forecast time series for a specific generator type (here: Photovoltaik)
@@ -180,6 +194,19 @@ class App:
 		# Show the first rows after the simulation was applied
 		print("\nErste Prognose-Zeilen (nach Dürre-Simulation):")
 		print(prognose_with_drought.df.head())
+
+		# Wende Stack-Modell-Algorithmus an: Konvertiere installierte Leistung zu realisierter Erzeugung
+		print("\nStack-Modell-Algorithmus wird angewendet...")
+		stack_start = time.time()
+		realisiert_datenreihen = apply_stack_model_to_ausbaupfad(
+			ausbaupfad=ausbaupfad,
+			smard=self.smard,
+			verbrauch_art=VerbraucherArt.Netzlast,
+		)
+		stack_end = time.time()
+		stack_duration = stack_end - stack_start
+		print(f"Realisierte Erzeugung für {len(realisiert_datenreihen)} Erzeuger-Arten berechnet.")
+		print(f"Stack-Modell-Berechnung dauerte: {stack_duration:.2f} Sekunden ({stack_duration/60:.2f} Minuten)")
 
 		# Optional direct probes for a single timestamp; kept as commented examples
 		# print("\nInstallierter Wert:")
@@ -296,9 +323,14 @@ class App:
 			# 1. Vertikale Linie: Ende der Smard-Daten
 			ax1.axvline(x=smard_end, color="red", linestyle="--", linewidth=1.5, label="Ende Historie")
 			
-			# 2. Markierungen für Prognose-Datenpunkte
+			# 2. Markierungen für Prognose-Datenpunkte (nur erste mit Label für Legende)
+			first_dp = True
 			for t in dp_times:
-				ax1.axvline(x=t, color="black", linestyle=":", linewidth=1.0, alpha=0.7)
+				if first_dp:
+					ax1.axvline(x=t, color="black", linestyle=":", linewidth=1.0, alpha=0.7, label="Prognose-Datenpunkte")
+					first_dp = False
+				else:
+					ax1.axvline(x=t, color="black", linestyle=":", linewidth=1.0, alpha=0.7)
 			
 			ax1.set_title(f"Gesamterzeugung (Auflösung: {current_res_label})")
 			ax1.set_xlabel("Zeit")
@@ -429,17 +461,284 @@ class App:
 		# Ende Historie Linie auch hier
 		ax2.axvline(x=smard_end, color="red", linestyle="--", linewidth=1.5, label="Ende Historie")
 		
+		# Markierungen für Prognose-Datenpunkte (nur erste mit Label für Legende)
+		first_dp = True
+		for t in dp_times:
+			if first_dp:
+				ax2.axvline(x=t, color="black", linestyle=":", linewidth=1.0, alpha=0.7, label="Prognose-Datenpunkte")
+				first_dp = False
+			else:
+				ax2.axvline(x=t, color="black", linestyle=":", linewidth=1.0, alpha=0.7)
+		
 		ax2.set_ylabel("Installierte Leistung [MW]")
 		ax2.grid(True, alpha=0.3)
 		# Legende außerhalb rechts
 		ax2.legend(loc="center left", bbox_to_anchor=(1, 0.5))
 		fig2.tight_layout()
 
+		# =========================================================
+		# Plot 3 vorbereiten: Realisierte Erzeugung (Stackplot nach Stack-Modell)
+		# =========================================================
+		# Daten aus realisiert_datenreihen sammeln
+		realisiert_data_frames = []
+		for art, datenreihe in realisiert_datenreihen.items():
+			series = datenreihe.df.set_index("Datum von")[art]
+			realisiert_data_frames.append(series)
+
+		# Zu einem großen DataFrame zusammenfügen (außerhalb des if-Blocks, damit es für debug_plot verfügbar ist)
+		df_realisiert = pd.DataFrame()  # Initialisiere als leeres DataFrame
+		realisiert_cols = []  # Initialisiere als leere Liste
+		realisiert_col_colors = {}  # Initialisiere als leeres Dictionary
+		
+		if realisiert_data_frames:
+			# Zu einem großen DataFrame zusammenfügen
+			df_realisiert = pd.concat(realisiert_data_frames, axis=1).fillna(0)
+			
+			# Spalten sortieren (gleiche Sortierung wie Plot 1)
+			realisiert_cols = sorted(df_realisiert.columns)
+			df_realisiert = df_realisiert[realisiert_cols]
+			
+			# Gleiche Farben wie Plot 1 verwenden
+			realisiert_col_colors = {col: col_colors.get(col, "gray") for col in realisiert_cols}
+			
+			fig3, ax3 = pyplot.subplots(figsize=(12, 6))
+			fig3.canvas.manager.set_window_title("Realisierte Erzeugung (Stack-Modell)")
+			pyplot.subplots_adjust(right=0.75)
+			
+			# Initialer Status: Alle Erzeuger sichtbar
+			realisiert_visibility = [True] * len(realisiert_cols)
+			
+			# Resolution-Mapping (gleiche wie Plot 1)
+			def get_realisiert_plot_data(res_label):
+				"""Resample data based on selection."""
+				rule = res_map.get(res_label)
+				if rule is None:
+					return df_realisiert
+				return df_realisiert.resample(rule).mean()
+			
+			realisiert_current_res_label = "1 Woche"
+			
+			def update_realisiert_plot(val=None):
+				"""Aktualisiert den Plot für realisierte Erzeugung."""
+				ax3.clear()
+				
+				# Aktive Spalten filtern
+				active_cols = [c for c, v in zip(realisiert_cols, realisiert_visibility) if v]
+				
+				if active_cols:
+					# Daten passend zur Resolution holen
+					df_plot = get_realisiert_plot_data(realisiert_current_res_label)
+					
+					x = df_plot.index
+					y = [df_plot[c] for c in active_cols]
+					# Farben für die aktiven Spalten holen
+					stack_colors = [realisiert_col_colors[c] for c in active_cols]
+					
+					# Stackplot zeichnen
+					ax3.stackplot(x, y, labels=active_cols, colors=stack_colors, alpha=0.8)
+					
+					# Gesamtsumme als dunkle Linie hinzufügen
+					total_sum = df_plot[active_cols].sum(axis=1)
+					ax3.plot(x, total_sum, color="darkgrey", linestyle="-", linewidth=3, 
+							label="Gesamterzeugung (Summe)", alpha=0.9)
+				
+				# Zusatz-Markierungen
+				# 1. Vertikale Linie: Ende der Smard-Daten
+				ax3.axvline(x=smard_end, color="red", linestyle="--", linewidth=1.5, label="Ende Historie")
+				
+				# 2. Markierungen für Prognose-Datenpunkte (nur erste mit Label für Legende)
+				first_dp = True
+				for t in dp_times:
+					if first_dp:
+						ax3.axvline(x=t, color="black", linestyle=":", linewidth=1.0, alpha=0.7, label="Prognose-Datenpunkte")
+						first_dp = False
+					else:
+						ax3.axvline(x=t, color="black", linestyle=":", linewidth=1.0, alpha=0.7)
+				
+				# 3. Verbrauch als Referenzlinie
+				if ausbaupfad.prognose_verbraucher_datenreihen:
+					verbrauch_dr = ausbaupfad.prognose_verbraucher_datenreihen[0]
+					verbrauch_series = verbrauch_dr.df.set_index("Datum von")[verbrauch_dr.art]
+					verbrauch_plot = verbrauch_series.reindex(df_plot.index, method="ffill")
+					if realisiert_current_res_label != "15 min":
+						rule = res_map.get(realisiert_current_res_label)
+						if rule:
+							verbrauch_plot = verbrauch_plot.resample(rule).mean()
+					ax3.plot(verbrauch_plot.index, verbrauch_plot.values, 
+							color="black", linestyle="-", linewidth=2, label="Verbrauch/Bedarf", alpha=0.7)
+				
+				# Legende nach allen Zeichnungen erstellen
+				ax3.legend(loc="upper left", bbox_to_anchor=(1.05, 1.0), borderaxespad=0.)
+				
+				ax3.set_title(f"Realisierte Erzeugung nach Stack-Modell (Auflösung: {realisiert_current_res_label})")
+				ax3.set_xlabel("Zeit")
+				ax3.set_ylabel("Leistung [MW]")
+				ax3.grid(True, linestyle="--", alpha=0.5)
+				
+				# Canvas aktualisieren
+				fig3.canvas.draw_idle()
+			
+			# Erster Draw
+			update_realisiert_plot()
+			
+			# Widgets für Plot 3 erstellen
+			# Bereich für CheckButtons (Erzeuger an/aus) - obere Hälfte rechts
+			rax_check3 = pyplot.axes([0.78, 0.45, 0.2, 0.45])
+			rax_check3.set_title("Erzeuger an/aus")
+			check3 = CheckButtons(rax_check3, realisiert_cols, realisiert_visibility)
+			
+			# Färbe die Checkboxen und Labels
+			if hasattr(check3, "labels"):
+				for i, label_obj in enumerate(check3.labels):
+					col_name = realisiert_cols[i]
+					label_obj.set_color(realisiert_col_colors[col_name])
+					label_obj.set_fontweight("bold")
+			
+			boxes3 = getattr(check3, "rectangles", rax_check3.patches)
+			for i, col in enumerate(realisiert_cols):
+				if i < len(boxes3):
+					rect = boxes3[i]
+					rect.set_facecolor(realisiert_col_colors[col])
+					rect.set_edgecolor("black")
+					rect.set_alpha(0.8)
+			
+			def on_check3_click(label):
+				idx = realisiert_cols.index(label)
+				realisiert_visibility[idx] = not realisiert_visibility[idx]
+				update_realisiert_plot()
+			
+			check3.on_clicked(on_check3_click)
+			
+			# Bereich für RadioButtons (Auflösung) - untere Hälfte rechts
+			rax_radio3 = pyplot.axes([0.78, 0.1, 0.2, 0.25])
+			rax_radio3.set_title("Auflösung")
+			radio3 = RadioButtons(rax_radio3, list(res_map.keys()), active=3)
+			
+			def on_radio3_click(label):
+				nonlocal realisiert_current_res_label
+				realisiert_current_res_label = label
+				update_realisiert_plot()
+			
+			radio3.on_clicked(on_radio3_click)
+
+		# ---------------------------------------------------------
+		# Debug-Plot-Funktion: ein Erzeuger – installiert vs. Prognose vs. Stack
+		# WICHTIG: Muss VOR pyplot.show() erstellt werden, sonst wird es nicht angezeigt!
+		# ---------------------------------------------------------
+		def debug_plot_erzeuger(art: ErzeugerArt, resample_rule: str = "W") -> None:
+			"""
+			Zeigt für einen einzelnen Erzeuger:
+			- installierte Leistung (Ausbaupfad)
+			- Prognose-Erzeugung (max. verfügbar, df_all)
+			- realisierte Erzeugung nach Stack-Modell (df_realisiert)
+			in einem gemeinsamen Linienplot.
+			"""
+
+			# 1) Historische installierte Leistung dieses Erzeugers
+			erz = self.smard.get_erzeuger(art)
+			install_hist = erz.installiert.df.set_index("Datum von")[art]
+
+			# 2) Ausbaupfad-Datenpunkte für diesen Erzeuger
+			dps = ausbaupfad.get_erzeuger(art)
+
+			if dps:
+				# Startpunkt: letzter SMARD-Wert
+				last_smard_time = erz.installiert.df["Datum von"].iloc[-1]
+				last_smard_val = float(erz.installiert.df[art].iloc[-1])
+
+				x_points = [last_smard_time]
+				y_points = [last_smard_val]
+
+				for dp in sorted(dps, key=lambda d: d.datetime):
+					x_points.append(dp.datetime)
+					y_points.append(dp.installiert)
+
+				# Zeitreihe aus Stützstellen, zeitlich sortiert
+				inst_path_raw = pd.Series(y_points, index=pd.to_datetime(x_points)).sort_index()
+			else:
+				# Kein Ausbaupfad für diese Art → nur historische installierte Leistung
+				inst_path_raw = install_hist.copy()
+
+			# 3) Prognose-Erzeugung (max. verfügbar) und Stack-Realisierung
+			if art not in df_all.columns or art not in df_realisiert.columns:
+				print(f"[debug_plot_erzeuger] {art} nicht in df_all/df_realisiert enthalten.")
+				return
+
+			prog = df_all[art].copy()
+			stack = df_realisiert[art].copy()
+
+			# 4) Alles auf gemeinsamen Index bringen
+			combined = pd.concat(
+				{
+					"Installiert": inst_path_raw,
+					"Prognose (max verfügbar)": prog,
+					"Stack realisiert": stack,
+				},
+				axis=1
+			).sort_index()
+
+			# Optional glätten (z.B. Wochenmittel), damit der Plot lesbarer ist
+			if resample_rule:
+				combined_plot = combined.resample(resample_rule).mean()
+			else:
+				combined_plot = combined
+
+			# Optionales Zeitfenster: 1 Jahr vor Ende Historie bis zum Ende der Daten
+			start = smard_end - datetime.timedelta(days=365)
+			end = combined_plot.index.max()
+			combined_plot = combined_plot.loc[(combined_plot.index >= start) & (combined_plot.index <= end)]
+
+			# 5) Plot zeichnen
+			fig, ax = pyplot.subplots(figsize=(12, 5))
+			ax.plot(
+				combined_plot.index,
+				combined_plot["Installiert"],
+				label="Installiert (Ausbaupfad)",
+				linewidth=2,
+			)
+			ax.plot(
+				combined_plot.index,
+				combined_plot["Prognose (max verfügbar)"],
+				label="Prognose-Erzeugung",
+				linewidth=1.5,
+			)
+			ax.plot(
+				combined_plot.index,
+				combined_plot["Stack realisiert"],
+				label="Realisierte Erzeugung (Stack)",
+				linewidth=2.5,
+			)
+
+			ax.axvline(
+				smard_end,
+				color="red",
+				linestyle="--",
+				linewidth=1.2,
+				label="Ende Historie",
+			)
+
+			ax.set_title(f"{art.name}: installiert vs. Prognose vs. Stack-Realisierung")
+			ax.set_xlabel("Zeit")
+			ax.set_ylabel("Leistung [MW]")
+			ax.grid(True, linestyle="--", alpha=0.5)
+			ax.legend(loc="best")
+
+		# Debug-Plot erstellen (VOR pyplot.show(), damit er angezeigt wird)
+		debug_plot_erzeuger(ErzeugerArt.Steinkohle)
+		
+		# Jetzt alle Plots anzeigen (inkl. Debug-Plot)
 		pyplot.show()
 
 		# Short textual summary to quickly verify size and covered time span
 		print("\nPrognose-Form:", prognose.df.shape)
 		print("Zeitraum:", prognose.df["Datum von"].iloc[0], "→", prognose.df["Datum bis"].iloc[-1])
+		
+		# Gesamtdauer ausgeben
+		test_end = time.time()
+		test_duration = test_end - test_start
+		print(f"\n=== Gesamtdauer der test()-Funktion: {test_duration:.2f} Sekunden ({test_duration/60:.2f} Minuten) ===")
+
+
 
 	def plot_verbraucher(self) -> None:
 		"""
