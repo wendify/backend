@@ -18,10 +18,12 @@ import uvicorn
 
 import config
 from core.api import routes
+from core.datenreihe import Datenreihe
 from core.prognose.ausbaupfad import Ausbaupfad
-from core.scenarios import create_default_scenario
+from core.scenarios import load_scenario
 from core.setup.smard import Smard
 from core.simulation.co2_calc import calculate_co2_emissions
+from core.simulation.simulator import apply_events_to_realized
 from core.simulation.stack_model import apply_stack_model_to_ausbaupfad
 from core.types import ErzeugerArt, VerbraucherArt
 from core.visualization import show_all_plots
@@ -66,12 +68,15 @@ class App:
 		total_start = time.time()
 		
 		# =====================================================================
-		# Step 1: Load scenario
+		# Step 1: Load scenario from CSV files
 		# =====================================================================
 		print("\n=== Schritt 1: Szenario laden ===")
-		datenpunkte, verbraucher_datenpunkte = create_default_scenario(self.smard)
-		print(f"  {len(datenpunkte)} Erzeuger-Datenpunkte geladen")
-		print(f"  {len(verbraucher_datenpunkte)} Verbraucher-Datenpunkte geladen")
+		szenario_name = "default"
+		datenpunkte, verbraucher_datenpunkte, event_datenpunkte = load_scenario(szenario_name, self.smard)
+		print(f"  Szenario '{szenario_name}' geladen")
+		print(f"  {len(datenpunkte)} Erzeuger-Datenpunkte")
+		print(f"  {len(verbraucher_datenpunkte)} Verbraucher-Datenpunkte")
+		print(f"  {len(event_datenpunkte)} Event-Datenpunkte")
 		
 		# =====================================================================
 		# Step 2: Build Ausbaupfad (forecast)
@@ -84,6 +89,32 @@ class App:
 		step_duration = time.time() - step_start
 		print(f"  Ausbaupfad erstellt in {step_duration:.2f} Sekunden")
 		print(f"  {len(ausbaupfad.prognose_datenreihen)} Prognose-Datenreihen")
+		
+		# =====================================================================
+		# Step 2.5: Apply Events to Prognose (before stack model)
+		# =====================================================================
+		if event_datenpunkte:
+			print("\n=== Schritt 2.5: Events auf Prognose anwenden ===")
+			step_start = time.time()
+			
+			# Konvertiere Liste zu Dict für Event-Anwendung
+			prognose_dict: dict[ErzeugerArt, Datenreihe] = {}
+			for datenreihe in ausbaupfad.prognose_datenreihen:
+				prognose_dict[datenreihe.art] = datenreihe
+			
+			# Events anwenden
+			modifizierte_prognose = apply_events_to_realized(
+				prognose_dict, event_datenpunkte
+			)
+			
+			# Zurück zu Liste konvertieren und Ausbaupfad aktualisieren
+			ausbaupfad.prognose_datenreihen = list(modifizierte_prognose.values())
+			
+			step_duration = time.time() - step_start
+			print(f"  {len(event_datenpunkte)} Events angewendet")
+			for event in event_datenpunkte:
+				print(f"    - {event.event_typ.value}: {event.datum_von.date()} bis {event.datum_bis.date()} (Intensität: {event.intensitaet})")
+			print(f"  Events dauerten: {step_duration:.2f} Sekunden")
 		
 		# =====================================================================
 		# Step 3: Apply stack model

@@ -133,10 +133,12 @@ def create_default_scenario(
 	
 	verbraucher_datenpunkte: List[VerbraucherDatenpunkt] = [
 		# Grid load expected to increase due to electrification (heat pumps, EVs, etc.)
-		VerbraucherDatenpunkt(VerbraucherArt.Netzlast, datetime.datetime(2026, 1, 1), current_mean_load),
-		VerbraucherDatenpunkt(VerbraucherArt.Netzlast, datetime.datetime(2030, 1, 1), current_mean_load * 10),
-		VerbraucherDatenpunkt(VerbraucherArt.Netzlast, datetime.datetime(2035, 1, 1), current_mean_load),
+		VerbraucherDatenpunkt(VerbraucherArt.Netzlast, datetime.datetime(2026, 1, 1), 13000),
+		VerbraucherDatenpunkt(VerbraucherArt.Netzlast, datetime.datetime(2030, 1, 1), 13000 * 10),
+		VerbraucherDatenpunkt(VerbraucherArt.Netzlast, datetime.datetime(2035, 1, 1), 13000),
 	]
 	
+	print(current_mean_load)
+
 	return erzeuger_datenpunkte, verbraucher_datenpunkte
 

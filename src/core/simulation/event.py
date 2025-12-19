@@ -1,4 +1,6 @@
+import datetime
 import enum
+from dataclasses import dataclass
 
 from core.simulation.parameter import ParamLevel, ParamName, ParamValue
 
@@ -7,6 +9,19 @@ class EventType(enum.StrEnum):
 	"""Types of simulation events."""
 
 	drought = "drought"
+
+
+@dataclass
+class EventDatenpunkt:
+	"""Ein Event mit Zeitbereich für die Szenario-Simulation.
+	
+	Wird aus events.csv geladen und definiert wann und wie stark
+	ein Event auf die realisierte Erzeugung angewendet wird.
+	"""
+	datum_von: datetime.datetime
+	datum_bis: datetime.datetime
+	event_typ: EventType
+	intensitaet: float  # 0.0 bis 1.0
 
 
 class SimulationEvent:
