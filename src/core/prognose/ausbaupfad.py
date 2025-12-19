@@ -595,26 +595,6 @@ def create_prognose_datenreihen(
 		# Hole den Extrapolationsmodus aus der Config
 		extrapolation_mode = getattr(config, "ENORM_EXTRAPOLATION_MODE", "daily")
 
-		# Erstelle das normierte Profil (ENorm)
-		# Für Erzeuger: Wir verwenden das bereits normierte Profil aus SMARD
-		# (Erzeugung / Installierte Leistung)
-		normalized_profile = create_normalized_profile(
-			base_df=normalized_df,
-			column_name=art,
-			target_times=time_grid["Datum von"],
-			normalization_value=1.0,  # Bereits normiert
-			extrapolation_mode=extrapolation_mode,
-		)
-
-		# Erstelle die Basis-Zeitreihe (heutige Werte + Zukunft = Profil * Baseline)
-		baseline_series = create_baseline_series(
-			base_df=realized_df,
-			column_name=art,
-			target_times=time_grid["Datum von"],
-			normalized_profile=normalized_profile,
-			baseline_value=baseline_installed,
-		)
-
 		# Interpoliere die Zielwerte (installierte Leistung)
 		target_installed_series = interpolate_target_values(
 			times=time_grid["Datum von"],
@@ -624,13 +604,38 @@ def create_prognose_datenreihen(
 			value_getter=lambda p: p.installiert,
 		)
 
-		# Berechne die finale Prognose
-		prognosis_series = calculate_prognosis(
-			baseline_series=baseline_series,
-			target_values_series=target_installed_series,
-			normalized_profile=normalized_profile,
-			baseline_value=baseline_installed,
-		)
+		# Unterscheide zwischen Erneuerbaren (regulation = 0) und Regelbaren (regulation > 0)
+		if erzeuger.regulation == 0.0:
+			# Erneuerbare: Verwende normiertes Profil (ENorm)
+			# (Erzeugung abhängig von Wetter/Tageszeit)
+			normalized_profile = create_normalized_profile(
+				base_df=normalized_df,
+				column_name=art,
+				target_times=time_grid["Datum von"],
+				normalization_value=1.0,  # Bereits normiert
+				extrapolation_mode=extrapolation_mode,
+			)
+
+			# Erstelle die Basis-Zeitreihe (heutige Werte + Zukunft = Profil * Baseline)
+			baseline_series = create_baseline_series(
+				base_df=realized_df,
+				column_name=art,
+				target_times=time_grid["Datum von"],
+				normalized_profile=normalized_profile,
+				baseline_value=baseline_installed,
+			)
+
+			# Berechne die finale Prognose mit Profil
+			prognosis_series = calculate_prognosis(
+				baseline_series=baseline_series,
+				target_values_series=target_installed_series,
+				normalized_profile=normalized_profile,
+				baseline_value=baseline_installed,
+			)
+		else:
+			# Regelbare Erzeuger: Verwende installierte Leistung direkt
+			# (Keine Profil-Anwendung, da Stack-Modell die Regelung übernimmt)
+			prognosis_series = target_installed_series
 
 		# Erstelle das Ergebnis-DataFrame
 		result_df = pd.DataFrame()

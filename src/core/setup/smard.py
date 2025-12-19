@@ -50,6 +50,41 @@ def get_regulation(art: ErzeugerArt) -> float:
 		return 0.0
 
 
+def get_co2(art: ErzeugerArt) -> float:
+	"""Get the CO2 emission factor for an ErzeugerArt.
+	
+	Returns the CO2 emissions in tonnes per MWh of electricity generated.
+	Values are based on typical emission factors for German power plants.
+	
+	Args:
+		art: The type of energy producer
+		
+	Returns:
+		CO2 emission factor in tonnes/MWh
+	"""
+	if art == ErzeugerArt.Braunkohle:
+		# Lignite: highest emissions (~1100 g/kWh)
+		return 1.1
+	elif art == ErzeugerArt.Steinkohle:
+		# Hard coal: (~850 g/kWh)
+		return 0.85
+	elif art == ErzeugerArt.Erdgas:
+		# Natural gas: (~400 g/kWh)
+		return 0.4
+	elif art == ErzeugerArt.Kernenergie:
+		# Nuclear: minimal lifecycle emissions (~10 g/kWh)
+		return 0.01
+	elif art == ErzeugerArt.Biomasse:
+		# Biomass: considered CO2-neutral in operation
+		return 0.0
+	elif art == ErzeugerArt.SonstigeKonventionelle:
+		# Other conventional: assume mix (~500 g/kWh)
+		return 0.5
+	else:
+		# Renewables (PV, Wind, Hydro, Pumpspeicher): zero operational emissions
+		return 0.0
+
+
 class Smard:
 	def __init__(self) -> None:
 		# Wenn Pickle existiert, direkt laden

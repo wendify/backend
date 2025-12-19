@@ -5,8 +5,10 @@ This module provides:
 - Event types (e.g., drought)
 - Producer-specific parameter weights
 - Impact calculation and application to energy data
+- CO2 emissions calculation
 """
 
+from core.simulation.co2_calc import calculate_co2_emissions
 from core.simulation.event import EventType, SimulationEvent, create_event_from_type
 from core.simulation.impact import apply_event_to_energy, calculate_impact_factor
 from core.simulation.parameter import ParamLevel, ParamName, ParamValue
@@ -26,4 +28,5 @@ __all__ = [
 	"apply_event_to_energy",
 	"Simulation",
 	"simulate_event",
+	"calculate_co2_emissions",
 ]
