@@ -1,18 +1,16 @@
 """
-Stack-Modell Algorithmus zur Erzeugungszuordnung (korrigiert)
+Stack-Modell Algorithmus zur Erzeugungszuordnung
 
-- Erneuerbare werden bevorzugt: Sie decken die Nachfrage so weit wie möglich,
-  und werden nur abgeregelt, wenn sonst Überschuss entsteht, der nicht über
-  konventionelles Abregeln (Ramp-Down + Mindestleistung) vermieden werden kann.
+Logik:
+1. Mindestleistung (MUSS) für Dispatchables berechnen
+2. Erneuerbare IMMER voll nutzen (keine Abregelung)
+3. Überschuss = MUSS + Erneuerbare - Verbrauch
+   - Bei Überschuss: Dispatchables Richtung 0 regeln (mit Ramp-Limits)
+   - Bei Unterdeckung: Dispatchables hochfahren (mit Ramp-Limits)
 
-- Konventionelle werden mit Ramp-Limits (± 2*reg*max_avail) geregelt.
+- Erneuerbare (regulation = 0) werden nie abgeregelt, Überschuss wird akzeptiert
+- Konventionelle werden mit Ramp-Limits (± 2*reg*max_avail) geregelt
 - Mindestleistung (MUSS) für EPS < reg < 1-EPS: prev_realized * (1 - reg)
-  (geclippt auf [0, max_avail])
-
-Wichtige Fixes:
-- EPS-Logik statt `reg == 0.0` (sonst werden PV/Wind oft NICHT als erneuerbar erkannt)
-- Überschuss wird sauber behandelt: konventionell runterregeln, erst dann (falls nötig)
-  Erneuerbare proportional abregeln.
 """
 
 import time
@@ -51,307 +49,301 @@ def calculate_realized_generation(
 	Berechnet die realisierte Erzeugung aus der maximal verfügbaren Erzeugung je Zeitschritt.
 
 	Dispatch-Logik:
-	1) Mindestleistung (MUSS) für konventionelle mit EPS<reg<1-EPS aus prev*(1-reg)
-	2) Erneuerbare decken den Rest der Nachfrage (Curtailment nur wenn Überschuss nicht anders weg geht)
-	3) Konventionelle decken verbleibenden Bedarf nach Priorität (Ramp-Limits)
-	4) Falls Überschuss entsteht (Ramp-Down/MUSS), wird konventionell abgeregelt,
-	   und erst wenn das nicht reicht, werden Erneuerbare proportional abgeregelt.
+	1) Mindestleistung (MUSS) für regelbare Erzeuger
+	2) Erneuerbare IMMER voll nutzen (keine Abregelung)
+	3) Bei Unterdeckung: Regelbare hochfahren (mit Ramp-Limits)
+	4) Bei Überschuss: Regelbare runterregeln (mit Ramp-Limits)
 	"""
 
 	# ==========================================================================
-	# Schritt 1: Gemeinsames Zeitraster (pandas)
+	# Vorbereitung: Zeitraster und Daten aufbereiten
 	# ==========================================================================
 
-	verbrauch_indexed = verbrauch_datenreihe.df.set_index("Datum von")
-	if verbrauch_indexed.index.has_duplicates:
-		verbrauch_indexed = verbrauch_indexed.groupby(level=0).mean()
+	# Verbrauchsdaten auf gemeinsamen Zeitindex bringen
+	verbrauch_nach_zeit = verbrauch_datenreihe.df.set_index("Datum von")
+	if verbrauch_nach_zeit.index.has_duplicates:
+		verbrauch_nach_zeit = verbrauch_nach_zeit.groupby(level=0).mean()
 
-	time_index = verbrauch_indexed.index
-	total_steps = len(time_index)
+	zeitindex = verbrauch_nach_zeit.index
+	anzahl_zeitschritte = len(zeitindex)
+	verbrauch_werte = verbrauch_nach_zeit[verbrauch_datenreihe.art]
 
-	verbrauch_series = verbrauch_indexed[verbrauch_datenreihe.art]
+	# Alle Erzeuger-Daten auf denselben Zeitindex bringen
+	max_verfuegbar_df = pd.DataFrame(index=zeitindex)
+	for erzeuger_art, datenreihe in max_available_datenreihen.items():
+		erzeuger_nach_zeit = datenreihe.df.set_index("Datum von")
+		if erzeuger_nach_zeit.index.has_duplicates:
+			erzeuger_nach_zeit = erzeuger_nach_zeit.groupby(level=0).mean()
+		erzeuger_werte = erzeuger_nach_zeit[erzeuger_art]
+		angepasste_werte = erzeuger_werte.reindex(zeitindex)
+		max_verfuegbar_df[erzeuger_art] = angepasste_werte.ffill().fillna(0.0)
 
-	max_available_df = pd.DataFrame(index=time_index)
-	for art, datenreihe in max_available_datenreihen.items():
-		max_available_indexed = datenreihe.df.set_index("Datum von")
-		if max_available_indexed.index.has_duplicates:
-			max_available_indexed = max_available_indexed.groupby(level=0).mean()
-		max_available_series = max_available_indexed[art]
-		reindexed = max_available_series.reindex(time_index)
-		max_available_df[art] = reindexed.ffill().fillna(0.0)
-
-	arts = list(max_available_datenreihen.keys())
-	num_arts = len(arts)
-	art_to_idx = {art: i for i, art in enumerate(arts)}
+	# Liste aller Erzeugerarten und Zuordnung zu Indizes
+	alle_erzeuger = list(max_available_datenreihen.keys())
+	anzahl_erzeuger = len(alle_erzeuger)
+	erzeuger_zu_index = {art: i for i, art in enumerate(alle_erzeuger)}
 
 	# ==========================================================================
-	# Schritt 2: regulation-Werte nur einmal holen
+	# Regulation-Werte holen und Erzeuger klassifizieren
 	# ==========================================================================
 
-	regulation_arr = np.zeros(num_arts, dtype=np.float64)
-	for art in arts:
-		erz = smard.get_erzeuger(art)
-		regulation_arr[art_to_idx[art]] = float(erz.regulation)
+	regulation_werte = np.zeros(anzahl_erzeuger, dtype=np.float64)
+	for erzeuger_art in alle_erzeuger:
+		erzeuger = smard.get_erzeuger(erzeuger_art)
+		index = erzeuger_zu_index[erzeuger_art]
+		regulation_werte[index] = float(erzeuger.regulation)
 
-	renewable_indices: List[int] = []
-	dispatchable_indices: List[int] = []
+	# Erneuerbare vs Regelbare trennen
+	erneuerbare_indizes: List[int] = []
+	regelbare_indizes: List[int] = []
 
-	# !!! WICHTIG: EPS statt == 0.0
-	for i in range(num_arts):
-		if regulation_arr[i] <= EPS:
-			renewable_indices.append(i)
+	for index in range(anzahl_erzeuger):
+		if regulation_werte[index] <= EPS:
+			erneuerbare_indizes.append(index)
 		else:
-			dispatchable_indices.append(i)
+			regelbare_indizes.append(index)
 
-	# Dispatch-Reihenfolge (hochfahren) nach Priorität
-	priority_indices: List[int] = []
-	for art in PRIORITY_ORDER:
-		if art in art_to_idx:
-			idx = art_to_idx[art]
-			if regulation_arr[idx] > EPS:
-				priority_indices.append(idx)
+	# Reihenfolge zum Hochfahren (nach Priorität)
+	prioritaets_indizes: List[int] = []
+	for erzeuger_art in PRIORITY_ORDER:
+		if erzeuger_art in erzeuger_zu_index:
+			index = erzeuger_zu_index[erzeuger_art]
+			if regulation_werte[index] > EPS:
+				prioritaets_indizes.append(index)
 
-	priority_set = set(priority_indices)
-	remaining_dispatch_indices: List[int] = [
-		i for i in dispatchable_indices if i not in priority_set
+	prioritaets_set = set(prioritaets_indizes)
+	restliche_regelbare = [
+		index for index in regelbare_indizes if index not in prioritaets_set
 	]
 
-	dispatch_up_order = priority_indices + remaining_dispatch_indices
-	dispatch_down_order = list(reversed(dispatch_up_order))  # bei Überschuss: umgekehrt reduzieren
+	hochfahr_reihenfolge = prioritaets_indizes + restliche_regelbare
+	runterfahr_reihenfolge = list(reversed(hochfahr_reihenfolge))
 
 	# ==========================================================================
-	# Schritt 3: pandas -> numpy
+	# Daten in numpy Arrays umwandeln (schneller für Berechnungen)
 	# ==========================================================================
 
-	max_available_arr = np.zeros((total_steps, num_arts), dtype=np.float64)
-	for i, art in enumerate(arts):
-		max_available_arr[:, i] = max_available_df[art].values.astype(np.float64)
+	max_verfuegbar_array = np.zeros((anzahl_zeitschritte, anzahl_erzeuger), dtype=np.float64)
+	for index, erzeuger_art in enumerate(alle_erzeuger):
+		max_verfuegbar_array[:, index] = max_verfuegbar_df[erzeuger_art].values.astype(np.float64)
 
-	verbrauch_arr = verbrauch_series.values.astype(np.float64)
+	verbrauch_array = verbrauch_werte.values.astype(np.float64)
 
-	prev_realized_arr = np.zeros(num_arts, dtype=np.float64)
+	# Vorheriger realisierter Zustand (für Ramp-Limits)
+	vorherige_erzeugung = np.zeros(anzahl_erzeuger, dtype=np.float64)
 	if previous_realisiert is not None:
-		for art, datenreihe in previous_realisiert.items():
-			if art in art_to_idx:
-				idx = art_to_idx[art]
-				previous_indexed = datenreihe.df.set_index("Datum von")
-				if previous_indexed.index.has_duplicates:
-					previous_indexed = previous_indexed.groupby(level=0).mean()
-				previous_series = previous_indexed[art]
-				if len(previous_series) > 0:
-					prev_realized_arr[idx] = float(previous_series.iloc[-1])
+		for erzeuger_art, datenreihe in previous_realisiert.items():
+			if erzeuger_art in erzeuger_zu_index:
+				index = erzeuger_zu_index[erzeuger_art]
+				erzeuger_nach_zeit = datenreihe.df.set_index("Datum von")
+				if erzeuger_nach_zeit.index.has_duplicates:
+					erzeuger_nach_zeit = erzeuger_nach_zeit.groupby(level=0).mean()
+				erzeuger_zeitreihe = erzeuger_nach_zeit[erzeuger_art]
+				if len(erzeuger_zeitreihe) > 0:
+					vorherige_erzeugung[index] = float(erzeuger_zeitreihe.iloc[-1])
 
 	# ==========================================================================
-	# Schritt 4: Ergebnis-Array
+	# Hauptberechnung: Zeitschritt für Zeitschritt
 	# ==========================================================================
 
-	result_arr = np.zeros((total_steps, num_arts), dtype=np.float64)
+	ergebnis_array = np.zeros((anzahl_zeitschritte, anzahl_erzeuger), dtype=np.float64)
 
-	# Hilfs-Arrays (wiederverwendet)
-	out = np.zeros(num_arts, dtype=np.float64)
-	min_out = np.zeros(num_arts, dtype=np.float64)
+	# Arbeits-Arrays für jeden Zeitschritt
+	aktuelle_erzeugung = np.zeros(anzahl_erzeuger, dtype=np.float64)
+	mindest_erzeugung = np.zeros(anzahl_erzeuger, dtype=np.float64)
 
-	print(f"Berechne {total_steps} Zeitschritte (korrigiert/optimiert)...")
-	loop_start = time.time()
-	progress_interval = 50000
+	print(f"Berechne {anzahl_zeitschritte} Zeitschritte...")
+	start_zeit = time.time()
+	fortschritt_intervall = 50000
 
-	debug_surplus_steps = 0
-	debug_bedarf_steps = 0
+	anzahl_ueberschuss_schritte = 0
+	anzahl_unterdeckungs_schritte = 0
 
-	# Zeitschritt-Dauer für Datum bis (besser als hardcoded 15 min)
-	if total_steps >= 2:
-		step_delta = time_index[1] - time_index[0]
+	# Zeitschrittdauer für "Datum bis" berechnen
+	if anzahl_zeitschritte >= 2:
+		zeitschritt_dauer = zeitindex[1] - zeitindex[0]
 	else:
-		step_delta = pd.Timedelta(minutes=15)
+		zeitschritt_dauer = pd.Timedelta(minutes=15)
 
-	for step_idx in range(total_steps):
-		max_avail_t = max_available_arr[step_idx]
-		demand_t = float(verbrauch_arr[step_idx])
+	for zeitschritt_index in range(anzahl_zeitschritte):
+		max_verfuegbar_jetzt = max_verfuegbar_array[zeitschritt_index]
+		verbrauch_jetzt = float(verbrauch_array[zeitschritt_index])
 
-		out.fill(0.0)
-		min_out.fill(0.0)
+		aktuelle_erzeugung.fill(0.0)
+		mindest_erzeugung.fill(0.0)
 
 		# ---------------------------------------------------------------------
-		# 1) Mindestleistung (MUSS) für Dispatchables
+		# Schritt 1: Mindestleistung (MUSS) für regelbare Erzeuger berechnen
 		# ---------------------------------------------------------------------
-		for idx in dispatchable_indices:
-			reg = regulation_arr[idx]
-			prev = prev_realized_arr[idx]
-			max_avail = max_avail_t[idx]
-			if max_avail < 0.0:
-				max_avail = 0.0
+		for index in regelbare_indizes:
+			regulation = regulation_werte[index]
+			vorherige_leistung = vorherige_erzeugung[index]
+			max_verfuegbar = max_verfuegbar_jetzt[index]
+			
+			if max_verfuegbar < 0.0:
+				max_verfuegbar = 0.0
 
-			# Mindestleistung nur für EPS < reg < 1-EPS
-			if (reg > EPS) and (reg < 1.0 - EPS):
-				base = prev * (1.0 - reg)
+			# Mindestleistung nur für teilweise regelbare Erzeuger (0 < reg < 1)
+			if (regulation > EPS) and (regulation < 1.0 - EPS):
+				mindest_leistung = vorherige_leistung * (1.0 - regulation)
 			else:
-				base = 0.0
+				mindest_leistung = 0.0
 
-			val = base
-			if val < 0.0:
-				val = 0.0
-			if val > max_avail:
-				val = max_avail
+			# Sicherstellen dass Mindestleistung im gültigen Bereich liegt
+			if mindest_leistung < 0.0:
+				mindest_leistung = 0.0
+			if mindest_leistung > max_verfuegbar:
+				mindest_leistung = max_verfuegbar
 
-			min_out[idx] = val
-			out[idx] = val
-
-		remaining = demand_t - float(out.sum())
+			mindest_erzeugung[index] = mindest_leistung
+			aktuelle_erzeugung[index] = mindest_leistung
 
 		# ---------------------------------------------------------------------
-		# 2) Erneuerbare bevorzugt nutzen (nur bis Nachfrage gedeckt)
+		# Schritt 2: Erneuerbare IMMER voll einsetzen (keine Abregelung)
 		# ---------------------------------------------------------------------
-		if remaining > 0.0 and len(renewable_indices) > 0:
-			avail_ren = max_avail_t[renewable_indices].copy()
-			avail_ren[avail_ren < 0.0] = 0.0
-			total_ren = float(avail_ren.sum())
+		if len(erneuerbare_indizes) > 0:
+			erneuerbare_verfuegbar = max_verfuegbar_jetzt[erneuerbare_indizes].copy()
+			erneuerbare_verfuegbar[erneuerbare_verfuegbar < 0.0] = 0.0
+			aktuelle_erzeugung[erneuerbare_indizes] = erneuerbare_verfuegbar
 
-			if total_ren <= remaining + 1e-12:
-				out[renewable_indices] = avail_ren
-				remaining -= total_ren
-			else:
-				scale = remaining / total_ren if total_ren > 0.0 else 0.0
-				out[renewable_indices] = avail_ren * scale
-				remaining = 0.0
+		# Lücke oder Überschuss berechnen: Verbrauch - (MUSS + Erneuerbare)
+		fehlende_leistung = verbrauch_jetzt - float(aktuelle_erzeugung.sum())
 
-		if remaining <= 0.0:
-			debug_surplus_steps += 1
+		if fehlende_leistung <= 0.0:
+			anzahl_ueberschuss_schritte += 1
 		else:
-			debug_bedarf_steps += 1
+			anzahl_unterdeckungs_schritte += 1
 
 		# ---------------------------------------------------------------------
-		# 3) Konventionelle hochfahren (Priority) mit Ramp-Limits
+		# Schritt 3: Bei Unterdeckung - Regelbare hochfahren (mit Ramp-Limits)
 		# ---------------------------------------------------------------------
-		if remaining > 0.0:
-			for idx in dispatch_up_order:
-				if remaining <= 0.0:
+		if fehlende_leistung > 0.0:
+			for index in hochfahr_reihenfolge:
+				if fehlende_leistung <= 0.0:
 					break
 
-				reg = regulation_arr[idx]
-				max_avail = max_avail_t[idx]
-				if max_avail < 0.0:
-					max_avail = 0.0
+				regulation = regulation_werte[index]
+				max_verfuegbar = max_verfuegbar_jetzt[index]
+				if max_verfuegbar < 0.0:
+					max_verfuegbar = 0.0
 
-				prev = prev_realized_arr[idx]
-				max_delta = 2.0 * reg * max_avail
+				vorherige_leistung = vorherige_erzeugung[index]
+				max_aenderung = 2.0 * regulation * max_verfuegbar
 
-				lower = prev - max_delta
-				if lower < 0.0:
-					lower = 0.0
-				upper = prev + max_delta
-				if upper > max_avail:
-					upper = max_avail
+				# Berechne erlaubten Bereich durch Ramp-Limits
+				unteres_limit = vorherige_leistung - max_aenderung
+				if unteres_limit < 0.0:
+					unteres_limit = 0.0
+				
+				oberes_limit = vorherige_leistung + max_aenderung
+				if oberes_limit > max_verfuegbar:
+					oberes_limit = max_verfuegbar
 
-				if lower < min_out[idx]:
-					lower = min_out[idx]
+				# Mindestleistung muss eingehalten werden
+				if unteres_limit < mindest_erzeugung[index]:
+					unteres_limit = mindest_erzeugung[index]
 
-				# Wenn wir technisch nicht so weit runter dürfen, muss out mindestens lower sein
-				if out[idx] < lower:
-					delta = lower - out[idx]
-					out[idx] = lower
-					remaining -= delta
-					if remaining <= 0.0:
+				# Falls wir unter dem unteren Limit sind, zuerst darauf anheben
+				if aktuelle_erzeugung[index] < unteres_limit:
+					zusaetzlich_noetig = unteres_limit - aktuelle_erzeugung[index]
+					aktuelle_erzeugung[index] = unteres_limit
+					fehlende_leistung -= zusaetzlich_noetig
+					if fehlende_leistung <= 0.0:
 						break
 
-				headroom = upper - out[idx]
-				if headroom <= 0.0:
+				# Wie viel können wir noch hochfahren?
+				verfuegbarer_spielraum = oberes_limit - aktuelle_erzeugung[index]
+				if verfuegbarer_spielraum <= 0.0:
 					continue
 
-				add = headroom if headroom <= remaining else remaining
-				out[idx] += add
-				remaining -= add
+				# Fülle die Lücke soweit möglich
+				zufuegen = verfuegbarer_spielraum if verfuegbarer_spielraum <= fehlende_leistung else fehlende_leistung
+				aktuelle_erzeugung[index] += zufuegen
+				fehlende_leistung -= zufuegen
 
 		# ---------------------------------------------------------------------
-		# 4) Überschussbehandlung: konventionell runter, dann (falls nötig) EE abregeln
+		# Schritt 4: Bei Überschuss - Regelbare runterregeln (mit Ramp-Limits)
+		#            Erneuerbare werden NICHT abgeregelt!
 		# ---------------------------------------------------------------------
-		if remaining < -1e-9:
-			surplus = -remaining
+		if fehlende_leistung < -1e-9:
+			ueberschuss = -fehlende_leistung
 
-			# 4a) Dispatchables runterregeln (Ramp-Down + Mindestleistung)
-			for idx in dispatch_down_order:
-				if surplus <= 0.0:
+			# Regelbare Richtung 0 fahren (mit Ramp-Limits)
+			for index in runterfahr_reihenfolge:
+				if ueberschuss <= 0.0:
 					break
 
-				reg = regulation_arr[idx]
-				max_avail = max_avail_t[idx]
-				if max_avail < 0.0:
-					max_avail = 0.0
+				regulation = regulation_werte[index]
+				max_verfuegbar = max_verfuegbar_jetzt[index]
+				if max_verfuegbar < 0.0:
+					max_verfuegbar = 0.0
 
-				prev = prev_realized_arr[idx]
-				max_delta = 2.0 * reg * max_avail
+				vorherige_leistung = vorherige_erzeugung[index]
+				max_aenderung = 2.0 * regulation * max_verfuegbar
 
-				lower = prev - max_delta
-				if lower < 0.0:
-					lower = 0.0
-				if lower < min_out[idx]:
-					lower = min_out[idx]
+				# Unteres Limit durch Ramp-Down (Ziel ist 0, nicht Mindestleistung)
+				unteres_limit = vorherige_leistung - max_aenderung
+				if unteres_limit < 0.0:
+					unteres_limit = 0.0
 
-				reducible = out[idx] - lower
-				if reducible <= 0.0:
+				# Wie viel können wir reduzieren?
+				reduzierbarer_betrag = aktuelle_erzeugung[index] - unteres_limit
+				if reduzierbarer_betrag <= 0.0:
 					continue
 
-				red = reducible if reducible <= surplus else surplus
-				out[idx] -= red
-				surplus -= red
+				# Reduziere soweit wie möglich
+				reduktion = reduzierbarer_betrag if reduzierbarer_betrag <= ueberschuss else ueberschuss
+				aktuelle_erzeugung[index] -= reduktion
+				ueberschuss -= reduktion
 
-			# 4b) Wenn immer noch Überschuss: Erneuerbare proportional abregeln (last resort)
-			if surplus > 1e-9 and len(renewable_indices) > 0:
-				ren_now = out[renewable_indices].copy()
-				total_ren_now = float(ren_now.sum())
-				if total_ren_now > 0.0:
-					new_total = total_ren_now - surplus
-					if new_total < 0.0:
-						new_total = 0.0
-					scale = new_total / total_ren_now
-					out[renewable_indices] = ren_now * scale
-					surplus = 0.0
-
-			remaining = -surplus
+			# Überschuss bleibt bestehen - KEINE Abregelung der Erneuerbaren
+			fehlende_leistung = -ueberschuss
 
 		# ---------------------------------------------------------------------
-		# 5) Ergebnis speichern & prev updaten
+		# Ergebnis speichern und für nächsten Zeitschritt merken
 		# ---------------------------------------------------------------------
-		out[out < 0.0] = 0.0
-		result_arr[step_idx, :] = out
-		prev_realized_arr[:] = out
+		aktuelle_erzeugung[aktuelle_erzeugung < 0.0] = 0.0
+		ergebnis_array[zeitschritt_index, :] = aktuelle_erzeugung
+		vorherige_erzeugung[:] = aktuelle_erzeugung
 
-		if (step_idx + 1) % progress_interval == 0:
-			elapsed = time.time() - loop_start
-			progress_pct = ((step_idx + 1) / total_steps) * 100
-			avg = elapsed / (step_idx + 1)
-			eta = avg * (total_steps - (step_idx + 1))
+		# Fortschritt ausgeben
+		if (zeitschritt_index + 1) % fortschritt_intervall == 0:
+			vergangene_zeit = time.time() - start_zeit
+			fortschritt_prozent = ((zeitschritt_index + 1) / anzahl_zeitschritte) * 100
+			durchschnitt_pro_schritt = vergangene_zeit / (zeitschritt_index + 1)
+			geschaetzte_restzeit = durchschnitt_pro_schritt * (anzahl_zeitschritte - (zeitschritt_index + 1))
 			print(
-				f"  Fortschritt: {step_idx + 1}/{total_steps} ({progress_pct:.1f}%) | "
-				f"Zeit: {elapsed:.1f}s | Verbleibend: {eta:.1f}s"
+				f"  Fortschritt: {zeitschritt_index + 1}/{anzahl_zeitschritte} ({fortschritt_prozent:.1f}%) | "
+				f"Zeit: {vergangene_zeit:.1f}s | Verbleibend: {geschaetzte_restzeit:.1f}s"
 			)
 
-	loop_duration = time.time() - loop_start
-	print(f"Berechnung abgeschlossen in {loop_duration:.2f} Sekunden")
+	berechnungs_dauer = time.time() - start_zeit
+	print(f"Berechnung abgeschlossen in {berechnungs_dauer:.2f} Sekunden")
 	print(
-		f"  DEBUG: Überschuss-Schritte (remaining <= 0): {debug_surplus_steps} "
-		f"({100*debug_surplus_steps/total_steps:.1f}%)"
+		f"  Überschuss-Zeitschritte: {anzahl_ueberschuss_schritte} "
+		f"({100*anzahl_ueberschuss_schritte/anzahl_zeitschritte:.1f}%)"
 	)
 	print(
-		f"  DEBUG: Bedarf-Schritte (remaining > 0): {debug_bedarf_steps} "
-		f"({100*debug_bedarf_steps/total_steps:.1f}%)"
+		f"  Unterdeckungs-Zeitschritte: {anzahl_unterdeckungs_schritte} "
+		f"({100*anzahl_unterdeckungs_schritte/anzahl_zeitschritte:.1f}%)"
 	)
 
 	# ==========================================================================
-	# Schritt 6: numpy -> Datenreihen
+	# Ergebnisse zurück in Datenreihen umwandeln
 	# ==========================================================================
 
-	result: Dict[ErzeugerArt, Datenreihe] = {}
-	datum_von = time_index.to_numpy()
-	datum_bis = (time_index + step_delta).to_numpy()
+	ergebnis_dict: Dict[ErzeugerArt, Datenreihe] = {}
+	datum_von_array = zeitindex.to_numpy()
+	datum_bis_array = (zeitindex + zeitschritt_dauer).to_numpy()
 
-	for i, art in enumerate(arts):
+	for index, erzeuger_art in enumerate(alle_erzeuger):
 		df = pd.DataFrame()
-		df["Datum von"] = datum_von
-		df["Datum bis"] = datum_bis
-		df[art] = result_arr[:, i]
-		result[art] = Datenreihe(art, df)
+		df["Datum von"] = datum_von_array
+		df["Datum bis"] = datum_bis_array
+		df[erzeuger_art] = ergebnis_array[:, index]
+		ergebnis_dict[erzeuger_art] = Datenreihe(erzeuger_art, df)
 
-	return result
+	return ergebnis_dict
 
 
 def apply_stack_model_to_ausbaupfad(
