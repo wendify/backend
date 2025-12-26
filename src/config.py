@@ -1,6 +1,7 @@
 import os
-import pathlib
 import sys
+from datetime import datetime
+from pathlib import Path
 
 import dotenv
 
@@ -22,7 +23,7 @@ def getenv(key: str, *values: str) -> str:
 dotenv.load_dotenv()
 
 # Verzeichnisse
-BASE_DIR = pathlib.Path(__file__).parent.parent
+BASE_DIR = Path(__file__).parent.parent
 DATA_DIR = BASE_DIR.joinpath("data")
 LOGS_DIR = BASE_DIR.joinpath("logs")
 
@@ -44,6 +45,10 @@ LOG_LEVEL = getenv("LOG_LEVEL")
 ENORM_EXTRAPOLATION_MODE = getenv("ENORM_EXTRAPOLATION_MODE", "daily", "last", "yearly")
 ENVIRONMENT = getenv("ENVIRONMENT", "dev", "prod")
 PICKLE_FILE = DATA_DIR.joinpath("smard.pkl")
+
+# SMARD-Konfiguration
+SMARD_FROM = datetime.fromisoformat(getenv("SMARD_FROM"))
+SMARD_TO = datetime.fromisoformat(getenv("SMARD_TO"))
 SMARD_URL = getenv("SMARD_URL")
 
 # Verzeichnisse erstellen
