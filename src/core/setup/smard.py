@@ -10,13 +10,13 @@ from core.types import ErzeugerArt, VerbraucherArt
 
 def get_regulation(art: ErzeugerArt) -> float:
 	"""Get the regulation value for an ErzeugerArt.
-	
+
 	Regulation represents how much the output can be changed up or down
 	within one time step, as a fraction of the installed capacity.
-	
+
 	Args:
 		art: The type of energy producer
-		
+
 	Returns:
 		Regulation value between 0.0 and 1.0
 	"""
@@ -52,13 +52,13 @@ def get_regulation(art: ErzeugerArt) -> float:
 
 def get_co2(art: ErzeugerArt) -> float:
 	"""Get the CO2 emission factor for an ErzeugerArt.
-	
+
 	Returns the CO2 emissions in tonnes per MWh of electricity generated.
 	Values are based on typical emission factors for German power plants.
-	
+
 	Args:
 		art: The type of energy producer
-		
+
 	Returns:
 		CO2 emission factor in tonnes/MWh
 	"""

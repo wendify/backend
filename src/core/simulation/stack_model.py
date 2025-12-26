@@ -24,7 +24,6 @@ from core.prognose.ausbaupfad import Ausbaupfad
 from core.setup.smard import Smard
 from core.types import ErzeugerArt, VerbraucherArt
 
-
 # Prioritätenreihenfolge für das Auffüllen bei Unterdeckung
 PRIORITY_ORDER = [
 	ErzeugerArt.Kernenergie,
@@ -112,9 +111,7 @@ def calculate_realized_generation(
 				prioritaets_indizes.append(index)
 
 	prioritaets_set = set(prioritaets_indizes)
-	restliche_regelbare = [
-		index for index in regelbare_indizes if index not in prioritaets_set
-	]
+	restliche_regelbare = [index for index in regelbare_indizes if index not in prioritaets_set]
 
 	hochfahr_reihenfolge = prioritaets_indizes + restliche_regelbare
 	runterfahr_reihenfolge = list(reversed(hochfahr_reihenfolge))
@@ -179,7 +176,7 @@ def calculate_realized_generation(
 			regulation = regulation_werte[index]
 			vorherige_leistung = vorherige_erzeugung[index]
 			max_verfuegbar = max_verfuegbar_jetzt[index]
-			
+
 			if max_verfuegbar < 0.0:
 				max_verfuegbar = 0.0
 
@@ -234,7 +231,7 @@ def calculate_realized_generation(
 				unteres_limit = vorherige_leistung - max_aenderung
 				if unteres_limit < 0.0:
 					unteres_limit = 0.0
-				
+
 				oberes_limit = vorherige_leistung + max_aenderung
 				if oberes_limit > max_verfuegbar:
 					oberes_limit = max_verfuegbar
@@ -257,7 +254,11 @@ def calculate_realized_generation(
 					continue
 
 				# Fülle die Lücke soweit möglich
-				zufuegen = verfuegbarer_spielraum if verfuegbarer_spielraum <= fehlende_leistung else fehlende_leistung
+				zufuegen = (
+					verfuegbarer_spielraum
+					if verfuegbarer_spielraum <= fehlende_leistung
+					else fehlende_leistung
+				)
 				aktuelle_erzeugung[index] += zufuegen
 				fehlende_leistung -= zufuegen
 
@@ -292,7 +293,9 @@ def calculate_realized_generation(
 					continue
 
 				# Reduziere soweit wie möglich
-				reduktion = reduzierbarer_betrag if reduzierbarer_betrag <= ueberschuss else ueberschuss
+				reduktion = (
+					reduzierbarer_betrag if reduzierbarer_betrag <= ueberschuss else ueberschuss
+				)
 				aktuelle_erzeugung[index] -= reduktion
 				ueberschuss -= reduktion
 
@@ -311,7 +314,9 @@ def calculate_realized_generation(
 			vergangene_zeit = time.time() - start_zeit
 			fortschritt_prozent = ((zeitschritt_index + 1) / anzahl_zeitschritte) * 100
 			durchschnitt_pro_schritt = vergangene_zeit / (zeitschritt_index + 1)
-			geschaetzte_restzeit = durchschnitt_pro_schritt * (anzahl_zeitschritte - (zeitschritt_index + 1))
+			geschaetzte_restzeit = durchschnitt_pro_schritt * (
+				anzahl_zeitschritte - (zeitschritt_index + 1)
+			)
 			print(
 				f"  Fortschritt: {zeitschritt_index + 1}/{anzahl_zeitschritte} ({fortschritt_prozent:.1f}%) | "
 				f"Zeit: {vergangene_zeit:.1f}s | Verbleibend: {geschaetzte_restzeit:.1f}s"
@@ -321,11 +326,11 @@ def calculate_realized_generation(
 	print(f"Berechnung abgeschlossen in {berechnungs_dauer:.2f} Sekunden")
 	print(
 		f"  Überschuss-Zeitschritte: {anzahl_ueberschuss_schritte} "
-		f"({100*anzahl_ueberschuss_schritte/anzahl_zeitschritte:.1f}%)"
+		f"({100 * anzahl_ueberschuss_schritte / anzahl_zeitschritte:.1f}%)"
 	)
 	print(
 		f"  Unterdeckungs-Zeitschritte: {anzahl_unterdeckungs_schritte} "
-		f"({100*anzahl_unterdeckungs_schritte/anzahl_zeitschritte:.1f}%)"
+		f"({100 * anzahl_unterdeckungs_schritte / anzahl_zeitschritte:.1f}%)"
 	)
 
 	# ==========================================================================

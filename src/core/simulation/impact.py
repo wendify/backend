@@ -1,6 +1,6 @@
 from core.simulation.event import SimulationEvent
 from core.simulation.parameter import ParamLevel, ParamName
-from core.simulation.producer_weights import ProducerWeights, get_producer_weights
+from core.simulation.producer_weights import get_producer_weights
 from core.types import ErzeugerArt
 
 

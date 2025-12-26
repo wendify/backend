@@ -19,17 +19,17 @@ def calculate_co2_emissions(
 ) -> pd.DataFrame:
 	"""
 	Calculate CO2 emissions for each producer based on realized generation.
-	
+
 	The calculation converts power (MW) to energy (MWh) using the time step
 	duration, then multiplies by the CO2 emission factor (tonnes/MWh).
-	
+
 	Formula for each time step:
 		CO2 [tonnes] = Power [MW] × Time_Step [hours] × CO2_Factor [t/MWh]
-	
+
 	Args:
 		realisiert_datenreihen: Dictionary mapping ErzeugerArt to Datenreihe
 			containing the realized generation in MW.
-	
+
 	Returns:
 		DataFrame with:
 			- Index: "Datum von" timestamps
@@ -37,14 +37,14 @@ def calculate_co2_emissions(
 	"""
 	if not realisiert_datenreihen:
 		return pd.DataFrame()
-	
+
 	# Get one Datenreihe to extract the time index
 	first_datenreihe = next(iter(realisiert_datenreihen.values()))
 	first_df = first_datenreihe.df
-	
+
 	# Use "Datum von" as index
 	time_index = first_df["Datum von"]
-	
+
 	# Calculate time step duration in hours
 	# Typically 15 minutes = 0.25 hours
 	if len(time_index) >= 2:
@@ -52,25 +52,24 @@ def calculate_co2_emissions(
 	else:
 		# Default to 15 minutes if we can't determine
 		time_step_hours = 0.25
-	
+
 	# Create result DataFrame
 	result_df = pd.DataFrame()
 	result_df["Datum von"] = time_index
 	result_df = result_df.set_index("Datum von")
-	
+
 	# Calculate CO2 for each producer
 	for art, datenreihe in realisiert_datenreihen.items():
 		# Get the CO2 factor for this producer type
 		co2_factor = get_co2(art)
-		
+
 		# Get the realized power values (MW)
 		power_mw = datenreihe.df[art].values
-		
+
 		# Calculate CO2 emissions: MW × hours × t/MWh = tonnes
 		co2_tonnes = power_mw * time_step_hours * co2_factor
-		
+
 		# Add to result DataFrame
 		result_df[art] = co2_tonnes
-	
-	return result_df
 
+	return result_df

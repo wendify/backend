@@ -21,12 +21,12 @@ import config
 from core.datenreihe import Datenreihe
 from core.prognose.datenpunkt import ErzeugerDatenpunkt, VerbraucherDatenpunkt
 from core.setup.smard import Smard
-from core.types import ErzeugerArt, VerbraucherArt
-
+from core.types import ErzeugerArt
 
 # =============================================================================
 # VALIDIERUNG
 # =============================================================================
+
 
 def validate_datenpunkte(datenpunkte: list[ErzeugerDatenpunkt]) -> bool:
 	"""
@@ -57,6 +57,7 @@ def validate_datenpunkte(datenpunkte: list[ErzeugerDatenpunkt]) -> bool:
 # HILFSFUNKTIONEN FÜR ZEITRASTER
 # =============================================================================
 
+
 def get_time_step_from_dataframe(df: pd.DataFrame) -> timedelta:
 	"""
 	Ermittelt die Zeitauflösung (z.B. 15 Minuten) aus einem DataFrame.
@@ -81,7 +82,9 @@ def get_time_step_from_dataframe(df: pd.DataFrame) -> timedelta:
 	return timedelta(minutes=15)
 
 
-def create_time_grid(start_time: datetime, end_time: datetime, time_step: timedelta) -> pd.DataFrame:
+def create_time_grid(
+	start_time: datetime, end_time: datetime, time_step: timedelta
+) -> pd.DataFrame:
 	"""
 	Erstellt ein durchgehendes Zeitraster von start_time bis end_time.
 
@@ -112,6 +115,7 @@ def create_time_grid(start_time: datetime, end_time: datetime, time_step: timede
 # =============================================================================
 # INTERPOLATION FÜR ZIELPFADE
 # =============================================================================
+
 
 def interpolate_target_values(
 	times: pd.Series,
@@ -176,6 +180,7 @@ def interpolate_target_values(
 # =============================================================================
 # NORMIERTES PROFIL (ENorm / VNorm)
 # =============================================================================
+
 
 def create_normalized_profile(
 	base_df: pd.DataFrame,
@@ -271,6 +276,7 @@ def _extrapolate_with_daily_profile(
 	Das Tagesprofil ist der Mittelwert für jede Uhrzeit über alle Tage.
 	Beispiel: Mittags ist immer mehr Solar-Erzeugung als nachts.
 	"""
+
 	# Berechne Mittelwert für jede Uhrzeit
 	def get_time_of_day(timestamp):
 		return timestamp.time()
@@ -299,6 +305,7 @@ def _extrapolate_with_yearly_profile(
 	Das Jahresprofil berücksichtigt sowohl den Tag-im-Jahr als auch die Uhrzeit.
 	Beispiel: Im Juli mittags mehr Solar als im Dezember mittags.
 	"""
+
 	# Schlüssel: (Tag-im-Jahr, Uhrzeit)
 	def get_day_and_time(timestamp):
 		day_of_year = timestamp.timetuple().tm_yday
@@ -336,6 +343,7 @@ def _extrapolate_with_yearly_profile(
 # =============================================================================
 # HEUTIGE WERTE MIT ZUKUNFTS-FORTSETZUNG
 # =============================================================================
+
 
 def create_baseline_series(
 	base_df: pd.DataFrame,
@@ -389,6 +397,7 @@ def create_baseline_series(
 # PROGNOSE-BERECHNUNG
 # =============================================================================
 
+
 def calculate_prognosis(
 	baseline_series: pd.Series,
 	target_values_series: pd.Series,
@@ -437,6 +446,7 @@ def calculate_prognosis(
 # =============================================================================
 # ERZEUGER: ERGÄNZE FEHLENDE ARTEN
 # =============================================================================
+
 
 def ergaenze_erzeuger_datenpunkte(
 	datenpunkte: list[ErzeugerDatenpunkt],
@@ -526,6 +536,7 @@ def ergaenze_erzeuger_datenpunkte(
 # =============================================================================
 # HAUPTFUNKTION: ERZEUGER-PROGNOSE
 # =============================================================================
+
 
 def create_prognose_datenreihen(
 	datenpunkte: list[ErzeugerDatenpunkt],
@@ -653,6 +664,7 @@ def create_prognose_datenreihen(
 # HAUPTFUNKTION: VERBRAUCHER-PROGNOSE
 # =============================================================================
 
+
 def create_prognose_verbraucher_datenreihen(
 	datenpunkte: list[VerbraucherDatenpunkt],
 	smard: Smard,
@@ -776,6 +788,7 @@ def create_prognose_verbraucher_datenreihen(
 # HAUPTKLASSE: AUSBAUPFAD
 # =============================================================================
 
+
 class Ausbaupfad:
 	"""
 	Verwaltet den Ausbaupfad für Erzeuger und Verbraucher.
@@ -821,9 +834,11 @@ class Ausbaupfad:
 		)
 
 		# Erstelle Prognose-Datenreihen für Verbraucher
-		self.prognose_verbraucher_datenreihen: list[Datenreihe] = create_prognose_verbraucher_datenreihen(
-			self.verbraucher_datenpunkte,
-			smard,
+		self.prognose_verbraucher_datenreihen: list[Datenreihe] = (
+			create_prognose_verbraucher_datenreihen(
+				self.verbraucher_datenpunkte,
+				smard,
+			)
 		)
 
 	def interpolate_datenpunkte(self) -> None:

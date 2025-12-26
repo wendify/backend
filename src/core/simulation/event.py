@@ -14,10 +14,11 @@ class EventType(enum.StrEnum):
 @dataclass
 class EventDatenpunkt:
 	"""Ein Event mit Zeitbereich für die Szenario-Simulation.
-	
+
 	Wird aus events.csv geladen und definiert wann und wie stark
 	ein Event auf die realisierte Erzeugung angewendet wird.
 	"""
+
 	datum_von: datetime.datetime
 	datum_bis: datetime.datetime
 	event_typ: EventType

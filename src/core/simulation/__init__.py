@@ -9,7 +9,12 @@ This module provides:
 """
 
 from core.simulation.co2_calc import calculate_co2_emissions
-from core.simulation.event import EventDatenpunkt, EventType, SimulationEvent, create_event_from_type
+from core.simulation.event import (
+	EventDatenpunkt,
+	EventType,
+	SimulationEvent,
+	create_event_from_type,
+)
 from core.simulation.impact import apply_event_to_energy, calculate_impact_factor
 from core.simulation.parameter import ParamLevel, ParamName, ParamValue
 from core.simulation.producer_weights import ProducerWeights, get_producer_weights

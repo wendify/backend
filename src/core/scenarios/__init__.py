@@ -11,7 +11,6 @@ Jedes Szenario liegt in einem eigenen Ordner mit:
 - verbraucher.csv
 """
 
-from core.scenarios.scenario_loader import load_scenario, list_scenarios
+from core.scenarios.scenario_loader import list_scenarios, load_scenario
 
 __all__ = ["load_scenario", "list_scenarios"]
-

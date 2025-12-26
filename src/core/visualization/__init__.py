@@ -10,24 +10,23 @@ All plots open in the browser with full interactivity:
 Main entry point: show_all_plots()
 """
 
-from core.visualization.plots import (
-	show_all_plots,
-	create_prognose_stackplot,
-	create_installed_capacity_plot,
-	create_realized_stackplot,
-	create_surplus_plot,
-	create_comparison_stackplot,
-	create_curtailment_plot,
-	create_single_generator_plot,
-)
-
 from core.visualization.components import (
-	RESOLUTION_OPTIONS,
 	GENERATOR_COLORS,
+	RESOLUTION_OPTIONS,
 	get_color,
 	get_color_map,
-	resample_dataframe,
 	merge_datenreihen_to_dataframe,
+	resample_dataframe,
+)
+from core.visualization.plots import (
+	create_comparison_stackplot,
+	create_curtailment_plot,
+	create_installed_capacity_plot,
+	create_prognose_stackplot,
+	create_realized_stackplot,
+	create_single_generator_plot,
+	create_surplus_plot,
+	show_all_plots,
 )
 
 __all__ = [
