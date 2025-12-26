@@ -13,20 +13,15 @@ It orchestrates:
 import logging
 import time
 
-import fastapi
-import uvicorn
-
-import config
-from core.api import routes
 from core.datenreihe import Datenreihe
 from core.prognose.ausbaupfad import Ausbaupfad
-from core.scenarios import load_scenario
+from core.scenarios.scenario_loader import load_scenario
 from core.setup.smard import Smard
 from core.simulation.co2_calc import calculate_co2_emissions
 from core.simulation.simulator import apply_events_to_realized
 from core.simulation.stack_model import apply_stack_model_to_ausbaupfad
 from core.types import ErzeugerArt, VerbraucherArt
-from core.visualization import show_all_plots
+from core.visualization.plots import show_all_plots
 
 
 class App:
@@ -42,20 +37,9 @@ class App:
 
 	def __init__(self) -> None:
 		"""Initialize the application with API and data source."""
-		self.api = fastapi.FastAPI()
 		self.smard = Smard()
-		routes.setup(self.api, self.smard)
-
-	def start(self) -> None:
-		"""Start the API server."""
-		uvicorn.run(self.api, host=config.API_HOST, port=config.API_PORT, log_level="error")
 
 	def run(self) -> None:
-		"""Run the main simulation workflow."""
-		logging.info("Anwendung gestartet")
-		self.run_simulation()
-
-	def run_simulation(self) -> None:
 		"""
 		Run the complete energy transition simulation:
 

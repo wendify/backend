@@ -18,16 +18,6 @@ def getenv(key: str, *values: str) -> str:
 	return value
 
 
-# Lädt Env-Wert als Ganzzahl
-def getint(key: str) -> int:
-	value = getenv(key)
-
-	try:
-		return int(value)
-	except ValueError:
-		sys.exit(f"[ENV] Variable keine Ganzzahl: {key}")
-
-
 # Env-Datei laden
 dotenv.load_dotenv()
 
@@ -45,10 +35,6 @@ VERBRAUCHT_FILE = DATA_DIR.joinpath("verbraucht.csv")
 INSTALLIERT_IDS = 186, 188, 189, 194, 198, 207, 3792, 4072, 4073, 4074, 4075, 4076
 REALISIERT_IDS = 1223, 1224, 1225, 1226, 1227, 1228, 4066, 4067, 4068, 4069, 4070, 4071
 VERBRAUCHT_IDS = 410, 4359, 4387, 5140
-
-# FastAPI-Konfiguration
-API_HOST = getenv("API_HOST")
-API_PORT = getint("API_PORT")
 
 # Logging
 LOG_FILE = LOGS_DIR.joinpath("backend.log")
