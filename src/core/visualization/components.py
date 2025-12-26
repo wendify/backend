@@ -108,27 +108,6 @@ COMMON_LAYOUT = {
 }
 
 
-def create_resolution_buttons() -> List[Dict]:
-	"""
-	Create updatemenus buttons for resolution selection.
-
-	Returns:
-		List of button configurations for Plotly updatemenus
-	"""
-	# Note: Resolution switching requires data recomputation,
-	# so we handle it differently - see plots.py
-	buttons = []
-	for label in RESOLUTION_OPTIONS.keys():
-		buttons.append(
-			{
-				"label": label,
-				"method": "relayout",
-				"args": [{"title.text": f"(Auflösung: {label})"}],
-			}
-		)
-	return buttons
-
-
 def add_vertical_markers(
 	fig,
 	smard_end,

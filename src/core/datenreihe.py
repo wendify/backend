@@ -1,6 +1,3 @@
-import logging
-from datetime import datetime
-
 from pandas import DataFrame, Series
 
 
@@ -20,12 +17,3 @@ class Datenreihe[T]:
 	@property
 	def werte(self) -> Series:
 		return self.df[self.art]
-
-	def get_row(self, timestamp: datetime) -> Series:
-		result = self.df[(self.anfang <= timestamp) & (self.ende > timestamp)]
-
-		if result.empty:
-			logging.error(f"Kein Eintrag für {self.art}: {timestamp}")
-			raise KeyError(timestamp)
-
-		return result.iloc[0]

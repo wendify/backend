@@ -2,7 +2,7 @@ import datetime
 import enum
 from dataclasses import dataclass
 
-from core.simulation.parameter import ParamLevel, ParamName, ParamValue
+from core.simulation.parameter import ParamLevel, ParamName
 
 
 class EventType(enum.StrEnum):
@@ -31,7 +31,7 @@ class SimulationEvent:
 	def __init__(
 		self,
 		event_type: EventType,
-		param_values: dict[ParamName, ParamValue],
+		param_values: dict[ParamName, ParamLevel],
 		intensity: float = 1.0,
 	) -> None:
 		"""Initialize a simulation event.
@@ -45,7 +45,7 @@ class SimulationEvent:
 		self.param_values = param_values
 		self.intensity = max(0.0, min(1.0, intensity))  # Clamp to [0, 1]
 
-	def get_param_value(self, param: ParamName) -> ParamValue:
+	def get_param_value(self, param: ParamName) -> ParamLevel:
 		"""Get the parameter value for a given parameter."""
 		return self.param_values.get(param, ParamLevel.okay)
 
@@ -72,7 +72,7 @@ def create_event_from_type(event_type: EventType, intensity: float = 1.0) -> Sim
 	base_params = event_configs.get(event_type, {})
 
 	# Adjust parameter levels based on intensity
-	adjusted_params: dict[ParamName, ParamValue] = {}
+	adjusted_params: dict[ParamName, ParamLevel] = {}
 	for param_name, base_level in base_params.items():
 		# Scale the level based on intensity
 		# At intensity 0.0, move towards 'okay' (2)

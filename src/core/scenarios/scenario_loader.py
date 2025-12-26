@@ -341,12 +341,3 @@ def _string_zu_verbraucher_art(art_string: str) -> VerbraucherArt:
 		if art.value == art_string or art.name == art_string:
 			return art
 	raise ValueError(f"Unbekannte VerbraucherArt: '{art_string}'")
-
-
-def list_scenarios() -> List[str]:
-	szenarien: List[str] = []
-	for eintrag in SCENARIOS_DIR.iterdir():
-		if eintrag.is_dir() and not eintrag.name.startswith("_"):
-			if (eintrag / "erzeuger.csv").exists():
-				szenarien.append(eintrag.name)
-	return sorted(szenarien)

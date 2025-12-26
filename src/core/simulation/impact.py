@@ -18,9 +18,6 @@ def _get_parameter_impact(param_name: ParamName, param_level: ParamLevel) -> flo
 	Returns:
 		Normalized impact value (0.0 to 1.0)
 	"""
-	# Baseline is 'okay' level, which maps to 0.5
-	baseline_value = ParamLevel.okay.value / ParamLevel.high.value  # 0.5
-
 	# Convert level to normalized value
 	level_value = param_level.value / ParamLevel.high.value
 
@@ -96,22 +93,3 @@ def calculate_impact_factor(
 
 	# Clamp to reasonable bounds (0.0 to 2.0)
 	return max(0.0, min(2.0, impact_factor))
-
-
-def apply_event_to_energy(
-	base_energy: float,
-	event: SimulationEvent,
-	producer_type: ErzeugerArt,
-) -> float:
-	"""Apply a simulation event to calculate realized energy.
-
-	Args:
-		base_energy: The base/generated energy before the event
-		event: The simulation event
-		producer_type: The type of energy producer
-
-	Returns:
-		Realized energy after applying the event impact
-	"""
-	impact_factor = calculate_impact_factor(event, producer_type)
-	return base_energy * impact_factor

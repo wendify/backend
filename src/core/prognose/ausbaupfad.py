@@ -807,7 +807,7 @@ class Ausbaupfad:
 		erzeuger_datenpunkte: list[ErzeugerDatenpunkt],
 		verbraucher_datenpunkte: list[VerbraucherDatenpunkt],
 		smard: Smard | None = None,
-	):
+	) -> None:
 		"""
 		Initialisiert den Ausbaupfad.
 
@@ -841,14 +841,6 @@ class Ausbaupfad:
 			)
 		)
 
-	def interpolate_datenpunkte(self) -> None:
-		"""
-		(Veraltet) Platzhalter für Abwärtskompatibilität.
-
-		Die Interpolation erfolgt nun direkt im Konstruktor.
-		"""
-		pass
-
 	def get_erzeuger(self, art: ErzeugerArt) -> list[ErzeugerDatenpunkt]:
 		"""
 		Gibt die Eingabe-Datenpunkte für eine Erzeuger-Art zurück.
@@ -866,21 +858,3 @@ class Ausbaupfad:
 			if punkt.art == art:
 				result.append(punkt)
 		return result
-
-	def get_prognose_datenreihe(self, art: ErzeugerArt) -> Datenreihe | None:
-		"""
-		Gibt die berechnete Prognose-Datenreihe für eine Erzeuger-Art zurück.
-
-		Die Datenreihe enthält bereits die vollständige Prognose:
-		Heute + (Interpolierter Ausbau × Normiertes Profil)
-
-		Args:
-			art: Die gewünschte Erzeuger-Art
-
-		Returns:
-			Die Prognose-Datenreihe oder None wenn nicht gefunden
-		"""
-		for datenreihe in self.prognose_datenreihen:
-			if datenreihe.art == art:
-				return datenreihe
-		return None

@@ -22,7 +22,3 @@ class ParamLevel(enum.IntEnum):
 	okay = 2
 	medium = 3
 	high = 4
-
-
-# Type alias for parameter values
-ParamValue = ParamLevel
