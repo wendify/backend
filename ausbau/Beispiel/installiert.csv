@@ -1,0 +1,37 @@
+Datum;Art;Wert [MW]
+01.01.2026 00:00;Photovoltaik;130.000
+01.01.2030 00:00;Photovoltaik;215.000
+01.01.2035 00:00;Photovoltaik;260.000
+01.01.2026 00:00;Wind Onshore;70.000
+01.01.2030 00:00;Wind Onshore;85.000
+01.01.2035 00:00;Wind Onshore;100.000
+01.01.2026 00:00;Wind Offshore;11.000
+01.01.2030 00:00;Wind Offshore;25.000
+01.01.2035 00:00;Wind Offshore;40.000
+01.01.2026 00:00;Wasserkraft;5.600
+01.01.2030 00:00;Wasserkraft;5.800
+01.01.2035 00:00;Wasserkraft;6.000
+01.01.2026 00:00;Biomasse;9.500
+01.01.2030 00:00;Biomasse;9.000
+01.01.2035 00:00;Biomasse;8.000
+01.01.2026 00:00;Pumpspeicher;10.000
+01.01.2030 00:00;Pumpspeicher;11.000
+01.01.2035 00:00;Pumpspeicher;13.000
+01.01.2026 00:00;Sonstige Erneuerbare;1.500
+01.01.2030 00:00;Sonstige Erneuerbare;3.000
+01.01.2035 00:00;Sonstige Erneuerbare;5.000
+01.01.2026 00:00;Erdgas;36.000
+01.01.2030 00:00;Erdgas;40.000
+01.01.2035 00:00;Erdgas;38.000
+01.01.2026 00:00;Steinkohle;12.000
+01.01.2030 00:00;Steinkohle;3.000
+01.01.2035 00:00;Steinkohle;0
+01.01.2026 00:00;Braunkohle;13.000
+01.01.2030 00:00;Braunkohle;8.000
+01.01.2035 00:00;Braunkohle;2.000
+01.01.2026 00:00;Kernenergie;0
+01.01.2030 00:00;Kernenergie;0
+01.01.2035 00:00;Kernenergie;0
+01.01.2026 00:00;Sonstige Konventionelle;4.000
+01.01.2030 00:00;Sonstige Konventionelle;3.500
+01.01.2035 00:00;Sonstige Konventionelle;3.000

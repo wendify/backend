@@ -8,7 +8,7 @@ from core.simulation.parameter import ParamLevel, ParamName
 class EventType(enum.StrEnum):
 	"""Types of simulation events."""
 
-	drought = "drought"
+	drought = "Dürre"
 
 
 @dataclass

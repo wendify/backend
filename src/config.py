@@ -24,6 +24,7 @@ dotenv.load_dotenv()
 
 # Verzeichnisse
 BASE_DIR = Path(__file__).parent.parent
+AUSBAU_DIR = BASE_DIR.joinpath("ausbau")
 DATA_DIR = BASE_DIR.joinpath("data")
 LOGS_DIR = BASE_DIR.joinpath("logs")
 

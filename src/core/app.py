@@ -13,8 +13,8 @@ It orchestrates:
 import logging
 import time
 
+from core.prognose import loader
 from core.prognose.ausbaupfad import Ausbaupfad
-from core.scenarios.scenario_loader import load_scenario
 from core.setup.datenreihe import Datenreihe
 from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
@@ -56,9 +56,8 @@ class App:
 		# Step 1: Load scenario from CSV files
 		# =====================================================================
 		print("\n=== Schritt 1: Szenario laden ===")
-		szenario_name = "default"
-		datenpunkte, verbraucher_datenpunkte, event_datenpunkte = load_scenario(
-			szenario_name, self.smard
+		szenario_name, (datenpunkte, verbraucher_datenpunkte, event_datenpunkte) = next(
+			iter(loader.load_all().items())
 		)
 		print(f"  Szenario '{szenario_name}' geladen")
 		print(f"  {len(datenpunkte)} Erzeuger-Datenpunkte")

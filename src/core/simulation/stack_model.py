@@ -379,7 +379,7 @@ def apply_stack_model_to_ausbaupfad(
 			verbrauch_datenreihe = ausbaupfad.prognose_verbraucher_datenreihen[0]
 
 	if verbrauch_datenreihe is None:
-		verbrauch_datenreihe = smard.get_verbraucher(verbrauch_art)
+		verbrauch_datenreihe = smard.get_verbraucher(verbrauch_art).verbraucht
 
 	# Startzustand aus SMARD (prev_realized)
 	previous_realisiert: Dict[ErzeugerArt, Datenreihe] = {}
