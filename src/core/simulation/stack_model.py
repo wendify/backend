@@ -19,10 +19,11 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-from core.datenreihe import Datenreihe
 from core.prognose.ausbaupfad import Ausbaupfad
+from core.setup.datenreihe import Datenreihe
+from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
-from core.types import ErzeugerArt, VerbraucherArt
+from core.setup.verbraucher import VerbraucherArt
 
 # Prioritätenreihenfolge für das Auffüllen bei Unterdeckung
 PRIORITY_ORDER = [
@@ -90,7 +91,7 @@ def calculate_realized_generation(
 	for erzeuger_art in alle_erzeuger:
 		erzeuger = smard.get_erzeuger(erzeuger_art)
 		index = erzeuger_zu_index[erzeuger_art]
-		regulation_werte[index] = float(erzeuger.regulation)
+		regulation_werte[index] = float(erzeuger.art.regulierung)
 
 	# Erneuerbare vs Regelbare trennen
 	erneuerbare_indizes: List[int] = []

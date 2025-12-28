@@ -13,14 +13,15 @@ It orchestrates:
 import logging
 import time
 
-from core.datenreihe import Datenreihe
 from core.prognose.ausbaupfad import Ausbaupfad
 from core.scenarios.scenario_loader import load_scenario
+from core.setup.datenreihe import Datenreihe
+from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
+from core.setup.verbraucher import VerbraucherArt
 from core.simulation.co2_calc import calculate_co2_emissions
 from core.simulation.simulator import apply_events_to_realized
 from core.simulation.stack_model import apply_stack_model_to_ausbaupfad
-from core.types import ErzeugerArt, VerbraucherArt
 from core.visualization.plots import show_all_plots
 
 

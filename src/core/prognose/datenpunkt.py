@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from core.types import ErzeugerArt, VerbraucherArt
+from core.setup.erzeuger import ErzeugerArt
+from core.setup.verbraucher import VerbraucherArt
 
 
 @dataclass

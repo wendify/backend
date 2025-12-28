@@ -1,7 +1,7 @@
+from core.setup.erzeuger import ErzeugerArt
 from core.simulation.event import SimulationEvent
 from core.simulation.parameter import ParamLevel, ParamName
 from core.simulation.producer_weights import get_producer_weights
-from core.types import ErzeugerArt
 
 
 def _get_parameter_impact(param_name: ParamName, param_level: ParamLevel) -> float:

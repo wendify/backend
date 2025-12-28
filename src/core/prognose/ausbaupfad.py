@@ -18,10 +18,10 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 import config
-from core.datenreihe import Datenreihe
 from core.prognose.datenpunkt import ErzeugerDatenpunkt, VerbraucherDatenpunkt
+from core.setup.datenreihe import Datenreihe
+from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
-from core.types import ErzeugerArt
 
 # =============================================================================
 # VALIDIERUNG
@@ -616,7 +616,7 @@ def create_prognose_datenreihen(
 		)
 
 		# Unterscheide zwischen Erneuerbaren (regulation = 0) und Regelbaren (regulation > 0)
-		if erzeuger.regulation == 0.0:
+		if erzeuger.art.regulierung == 0.0:
 			# Erneuerbare: Verwende normiertes Profil (ENorm)
 			# (Erzeugung abhängig von Wetter/Tageszeit)
 			normalized_profile = create_normalized_profile(
@@ -710,7 +710,7 @@ def create_prognose_verbraucher_datenreihen(
 
 		# Hole die historischen Daten aus SMARD
 		verbraucher = smard.get_verbraucher(art)
-		consumption_df = verbraucher.df.copy()
+		consumption_df = verbraucher.verbraucht.df.copy()
 
 		# Hole Baseline-Werte
 		baseline_time = consumption_df["Datum von"].iloc[-1]

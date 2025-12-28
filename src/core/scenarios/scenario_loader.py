@@ -26,9 +26,10 @@ from typing import List, Tuple
 import pandas as pd
 
 from core.prognose.datenpunkt import ErzeugerDatenpunkt, VerbraucherDatenpunkt
+from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
+from core.setup.verbraucher import VerbraucherArt
 from core.simulation.event import EventDatenpunkt, EventType
-from core.types import ErzeugerArt, VerbraucherArt
 
 SCENARIOS_DIR = Path(__file__).parent
 

@@ -1,9 +1,9 @@
 from typing import Dict, List
 
-from core.datenreihe import Datenreihe
+from core.setup.datenreihe import Datenreihe
+from core.setup.erzeuger import ErzeugerArt
 from core.simulation.event import EventDatenpunkt, create_event_from_type
 from core.simulation.impact import calculate_impact_factor
-from core.types import ErzeugerArt
 
 
 def apply_events_to_realized(

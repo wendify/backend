@@ -12,7 +12,7 @@ from typing import Dict, List
 
 import pandas as pd
 
-from core.types import ErzeugerArt
+from core.setup.erzeuger import ErzeugerArt
 
 # =============================================================================
 # Resolution Options

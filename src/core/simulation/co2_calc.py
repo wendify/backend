@@ -9,9 +9,8 @@ from typing import Dict
 
 import pandas as pd
 
-from core.datenreihe import Datenreihe
-from core.setup.smard import get_co2
-from core.types import ErzeugerArt
+from core.setup.datenreihe import Datenreihe
+from core.setup.erzeuger import ErzeugerArt
 
 
 def calculate_co2_emissions(
@@ -61,7 +60,7 @@ def calculate_co2_emissions(
 	# Calculate CO2 for each producer
 	for art, datenreihe in realisiert_datenreihen.items():
 		# Get the CO2 factor for this producer type
-		co2_factor = get_co2(art)
+		co2_factor = art.emissionen
 
 		# Get the realized power values (MW)
 		power_mw = datenreihe.df[art].values

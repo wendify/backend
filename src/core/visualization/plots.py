@@ -14,11 +14,11 @@ from typing import Dict, List
 import pandas as pd
 import plotly.graph_objects as go
 
-from core.datenreihe import Datenreihe
 from core.prognose.ausbaupfad import Ausbaupfad
 from core.prognose.datenpunkt import ErzeugerDatenpunkt
+from core.setup.datenreihe import Datenreihe
+from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
-from core.types import ErzeugerArt
 from core.visualization.components import (
 	COMMON_LAYOUT,
 	RESOLUTION_OPTIONS,
