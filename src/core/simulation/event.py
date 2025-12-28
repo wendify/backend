@@ -1,28 +1,12 @@
-import datetime
 import enum
-from dataclasses import dataclass
 
 from core.simulation.parameter import ParamLevel, ParamName
 
 
-class EventType(enum.StrEnum):
+class EreignisArt(enum.StrEnum):
 	"""Types of simulation events."""
 
 	drought = "Dürre"
-
-
-@dataclass
-class EventDatenpunkt:
-	"""Ein Event mit Zeitbereich für die Szenario-Simulation.
-
-	Wird aus events.csv geladen und definiert wann und wie stark
-	ein Event auf die realisierte Erzeugung angewendet wird.
-	"""
-
-	datum_von: datetime.datetime
-	datum_bis: datetime.datetime
-	event_typ: EventType
-	intensitaet: float  # 0.0 bis 1.0
 
 
 class SimulationEvent:
@@ -30,7 +14,7 @@ class SimulationEvent:
 
 	def __init__(
 		self,
-		event_type: EventType,
+		event_type: EreignisArt,
 		param_values: dict[ParamName, ParamLevel],
 		intensity: float = 1.0,
 	) -> None:
@@ -50,7 +34,7 @@ class SimulationEvent:
 		return self.param_values.get(param, ParamLevel.okay)
 
 
-def create_event_from_type(event_type: EventType, intensity: float = 1.0) -> SimulationEvent:
+def create_event_from_type(event_type: EreignisArt, intensity: float = 1.0) -> SimulationEvent:
 	"""Create a simulation event based on event type with predefined parameter mappings.
 
 	Args:
@@ -60,8 +44,8 @@ def create_event_from_type(event_type: EventType, intensity: float = 1.0) -> Sim
 	Returns:
 		SimulationEvent with appropriate parameter values
 	"""
-	event_configs: dict[EventType, dict[ParamName, ParamLevel]] = {
-		EventType.drought: {
+	event_configs: dict[EreignisArt, dict[ParamName, ParamLevel]] = {
+		EreignisArt.drought: {
 			ParamName.temp: ParamLevel.high,
 			ParamName.sun: ParamLevel.high,
 			ParamName.rainfall: ParamLevel.low,

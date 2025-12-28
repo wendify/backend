@@ -56,7 +56,7 @@ class App:
 		# Step 1: Load scenario from CSV files
 		# =====================================================================
 		print("\n=== Schritt 1: Szenario laden ===")
-		szenario_name, (datenpunkte, verbraucher_datenpunkte, event_datenpunkte) = next(
+		szenario_name, (event_datenpunkte, datenpunkte, verbraucher_datenpunkte) = next(
 			iter(loader.load_all().items())
 		)
 		print(f"  Szenario '{szenario_name}' geladen")
@@ -98,7 +98,7 @@ class App:
 			print(f"  {len(event_datenpunkte)} Events angewendet")
 			for event in event_datenpunkte:
 				print(
-					f"    - {event.event_typ.value}: {event.datum_von.date()} bis {event.datum_bis.date()} (Intensität: {event.intensitaet})"
+					f"    - {event.art.value}: {event.anfang.date()} bis {event.ende.date()} (Intensität: {event.intensitaet})"
 				)
 			print(f"  Events dauerten: {step_duration:.2f} Sekunden")
 

@@ -1,14 +1,15 @@
 from typing import Dict, List
 
+from core.prognose.loader import Ereignis
 from core.setup.datenreihe import Datenreihe
 from core.setup.erzeuger import ErzeugerArt
-from core.simulation.event import EventDatenpunkt, create_event_from_type
+from core.simulation.event import create_event_from_type
 from core.simulation.impact import calculate_impact_factor
 
 
 def apply_events_to_realized(
 	realisiert_datenreihen: Dict[ErzeugerArt, Datenreihe],
-	events: List[EventDatenpunkt],
+	events: List[Ereignis],
 ) -> Dict[ErzeugerArt, Datenreihe]:
 	"""
 	Wendet Events auf die realisierte Erzeugung an (nur im jeweiligen Zeitbereich).
@@ -37,13 +38,13 @@ def apply_events_to_realized(
 		# Für jeden Event
 		for event in events:
 			# SimulationEvent erstellen
-			simulation_event = create_event_from_type(event.event_typ, event.intensitaet)
+			simulation_event = create_event_from_type(event.art, event.intensitaet)
 
 			# Zeitbereich filtern: datum_von <= Datum < datum_bis
 			datum_spalte = df["Datum von"]
 
 			# Maske für Zeitbereich erstellen
-			in_zeitbereich = (datum_spalte >= event.datum_von) & (datum_spalte < event.datum_bis)
+			in_zeitbereich = (datum_spalte >= event.anfang) & (datum_spalte < event.ende)
 
 			# Anzahl betroffener Zeitschritte
 			anzahl_betroffen = in_zeitbereich.sum()

@@ -15,7 +15,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from core.prognose.ausbaupfad import Ausbaupfad
-from core.prognose.datenpunkt import ErzeugerDatenpunkt
+from core.prognose.loader import Installation
 from core.setup.datenreihe import Datenreihe
 from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
@@ -32,7 +32,7 @@ from core.visualization.components import (
 def show_all_plots(
 	ausbaupfad: Ausbaupfad,
 	realisiert_datenreihen: Dict[ErzeugerArt, Datenreihe],
-	datenpunkte: List[ErzeugerDatenpunkt],
+	datenpunkte: List[Installation],
 	smard: Smard,
 	co2_df: pd.DataFrame = None,
 	default_resolution: str = "1 Woche",
@@ -58,7 +58,7 @@ def show_all_plots(
 
 	pv = smard.get_erzeuger(ErzeugerArt.Photovoltaik)
 	smard_end = pv.realisiert.df["Datum von"].iloc[-1]
-	dp_times = sorted({dp.datetime for dp in datenpunkte})
+	dp_times = sorted({dp.datum for dp in datenpunkte})
 
 	print("Öffne Plots im Browser...")
 
@@ -214,7 +214,7 @@ def create_prognose_stackplot(
 
 def create_installed_capacity_plot(
 	ausbaupfad: Ausbaupfad,
-	datenpunkte: List[ErzeugerDatenpunkt],
+	datenpunkte: List[Installation],
 	smard: Smard,
 	cols: List[ErzeugerArt],
 	smard_end,
@@ -252,9 +252,9 @@ def create_installed_capacity_plot(
 			x_points = [last_smard_time]
 			y_points = [last_smard_val]
 
-			for dp in sorted(dps, key=lambda d: d.datetime):
-				x_points.append(dp.datetime)
-				y_points.append(dp.installiert)
+			for dp in sorted(dps, key=lambda d: d.datum):
+				x_points.append(dp.datum)
+				y_points.append(dp.wert)
 
 			fig.add_trace(
 				go.Scatter(

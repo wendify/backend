@@ -18,17 +18,18 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 import config
-from core.prognose.datenpunkt import ErzeugerDatenpunkt, VerbraucherDatenpunkt
+from core.prognose.loader import Installation, Verbrauch
 from core.setup.datenreihe import Datenreihe
 from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
+from core.setup.verbraucher import VerbraucherArt
 
 # =============================================================================
 # VALIDIERUNG
 # =============================================================================
 
 
-def validate_datenpunkte(datenpunkte: list[ErzeugerDatenpunkt]) -> bool:
+def validate_datenpunkte(datenpunkte: list[Installation]) -> bool:
 	"""
 	Prüft, ob die Datenpunkte-Liste gültig ist.
 
@@ -47,7 +48,7 @@ def validate_datenpunkte(datenpunkte: list[ErzeugerDatenpunkt]) -> bool:
 
 	# Prüfe: Sind alle Einträge ErzeugerDatenpunkt?
 	for punkt in datenpunkte:
-		if not isinstance(punkt, ErzeugerDatenpunkt):
+		if not isinstance(punkt, Installation):
 			raise ValueError("Mindestens ein Eintrag ist kein ErzeugerDatenpunkt")
 
 	return True
@@ -121,8 +122,7 @@ def interpolate_target_values(
 	times: pd.Series,
 	baseline_time: datetime,
 	baseline_value: float,
-	target_points: list,  # ErzeugerDatenpunkt oder VerbraucherDatenpunkt
-	value_getter,  # Funktion um den Wert aus einem Datenpunkt zu holen
+	target_points: list[Installation | Verbrauch],
 ) -> pd.Series:
 	"""
 	Interpoliert Zielwerte linear über die Zeit.
@@ -139,7 +139,6 @@ def interpolate_target_values(
 		baseline_time: Zeitpunkt des Ausgangswerts
 		baseline_value: Ausgangswert (z.B. heute installierte Leistung)
 		target_points: Liste von Datenpunkten mit Zielwerten
-		value_getter: Funktion die den Wert aus einem Datenpunkt extrahiert
 
 	Returns:
 		pd.Series mit interpolierten Werten für jeden Zeitpunkt
@@ -149,8 +148,8 @@ def interpolate_target_values(
 	control_values = [float(baseline_value)]
 
 	for point in target_points:
-		control_times.append(point.datetime)
-		control_values.append(float(value_getter(point)))
+		control_times.append(point.datum)
+		control_values.append(point.wert)
 
 	# Schritt 2: Erstelle eine Series aus den Kontrollpunkten
 	control_series = pd.Series(control_values, index=pd.to_datetime(control_times))
@@ -449,9 +448,9 @@ def calculate_prognosis(
 
 
 def ergaenze_erzeuger_datenpunkte(
-	datenpunkte: list[ErzeugerDatenpunkt],
+	datenpunkte: list[Installation],
 	smard: Smard,
-) -> list[ErzeugerDatenpunkt]:
+) -> list[Installation]:
 	"""
 	Ergänzt Datenpunkte für Erzeuger-Arten die keine Datenpunkte haben.
 
@@ -484,8 +483,8 @@ def ergaenze_erzeuger_datenpunkte(
 	# Schritt 4: Finde das späteste Datum in den vorhandenen Datenpunkten
 	latest_datetime = datetime.min
 	for punkt in datenpunkte:
-		if punkt.datetime > latest_datetime:
-			latest_datetime = punkt.datetime
+		if punkt.datum > latest_datetime:
+			latest_datetime = punkt.datum
 
 	# Schritt 5: Ergänze Datenpunkte für fehlende Arten
 	if missing_types:
@@ -502,11 +501,7 @@ def ergaenze_erzeuger_datenpunkte(
 			last_installiert = float(last_row[art])
 
 			# Erstelle neuen Datenpunkt
-			new_punkt = ErzeugerDatenpunkt(
-				art=art,
-				datetime=latest_datetime,
-				installiert=last_installiert,
-			)
+			new_punkt = Installation(latest_datetime, art, last_installiert)
 			datenpunkte.append(new_punkt)
 
 	# Schritt 6: Ergänze auch vorhandene Arten bis zum spätesten Datum
@@ -516,18 +511,14 @@ def ergaenze_erzeuger_datenpunkte(
 		punkte_dieser_art = [p for p in datenpunkte if p.art == art]
 
 		# Sortiere nach Datum
-		punkte_dieser_art.sort(key=lambda p: p.datetime)
+		punkte_dieser_art.sort(key=lambda p: p.datum)
 
 		# Finde den letzten Datenpunkt dieser Art
 		last_punkt = punkte_dieser_art[-1]
 
 		# Wenn er vor dem spätesten Datum endet, ergänze
-		if last_punkt.datetime < latest_datetime:
-			new_punkt = ErzeugerDatenpunkt(
-				art=art,
-				datetime=latest_datetime,
-				installiert=last_punkt.installiert,
-			)
+		if last_punkt.datum < latest_datetime:
+			new_punkt = Installation(latest_datetime, art, last_punkt.wert)
 			datenpunkte.append(new_punkt)
 
 	return datenpunkte
@@ -539,7 +530,7 @@ def ergaenze_erzeuger_datenpunkte(
 
 
 def create_prognose_datenreihen(
-	datenpunkte: list[ErzeugerDatenpunkt],
+	datenpunkte: list[Installation],
 	smard: Smard,
 ) -> list[Datenreihe]:
 	"""
@@ -567,7 +558,7 @@ def create_prognose_datenreihen(
 		raise ValueError("Smard darf nicht None sein")
 
 	# Schritt 1: Gruppiere Datenpunkte nach Art
-	grouped_points = defaultdict(list)
+	grouped_points: defaultdict[ErzeugerArt, list[Installation]] = defaultdict(list)
 	for punkt in datenpunkte:
 		grouped_points[punkt.art].append(punkt)
 
@@ -577,7 +568,7 @@ def create_prognose_datenreihen(
 	for art in ErzeugerArt:
 		# Hole die Datenpunkte für diese Art (sortiert nach Datum)
 		points_for_this_type = grouped_points.get(art, [])
-		points_for_this_type.sort(key=lambda p: p.datetime)
+		points_for_this_type.sort(key=lambda p: p.datum)
 
 		# Hole die historischen Daten aus SMARD
 		erzeuger = smard.get_erzeuger(art)
@@ -591,7 +582,7 @@ def create_prognose_datenreihen(
 
 		# Bestimme den Zeithorizont (bis zum letzten Datenpunkt oder Ende der Daten)
 		if len(points_for_this_type) > 0:
-			last_target_time = points_for_this_type[-1].datetime
+			last_target_time = points_for_this_type[-1].datum
 		else:
 			last_target_time = normalized_df["Datum bis"].iloc[-1]
 
@@ -612,7 +603,6 @@ def create_prognose_datenreihen(
 			baseline_time=baseline_time,
 			baseline_value=baseline_installed,
 			target_points=points_for_this_type,
-			value_getter=lambda p: p.installiert,
 		)
 
 		# Unterscheide zwischen Erneuerbaren (regulation = 0) und Regelbaren (regulation > 0)
@@ -666,7 +656,7 @@ def create_prognose_datenreihen(
 
 
 def create_prognose_verbraucher_datenreihen(
-	datenpunkte: list[VerbraucherDatenpunkt],
+	datenpunkte: list[Verbrauch],
 	smard: Smard,
 ) -> list[Datenreihe]:
 	"""
@@ -696,7 +686,7 @@ def create_prognose_verbraucher_datenreihen(
 		raise ValueError("Smard darf nicht None sein")
 
 	# Schritt 1: Gruppiere Datenpunkte nach Art
-	grouped_points = defaultdict(list)
+	grouped_points: defaultdict[VerbraucherArt, list[Verbrauch]] = defaultdict(list)
 	for punkt in datenpunkte:
 		grouped_points[punkt.art].append(punkt)
 
@@ -706,7 +696,7 @@ def create_prognose_verbraucher_datenreihen(
 	for art in grouped_points.keys():
 		# Hole die Datenpunkte für diese Art (sortiert nach Datum)
 		points_for_this_type = grouped_points[art]
-		points_for_this_type.sort(key=lambda p: p.datetime)
+		points_for_this_type.sort(key=lambda p: p.datum)
 
 		# Hole die historischen Daten aus SMARD
 		verbraucher = smard.get_verbraucher(art)
@@ -721,7 +711,7 @@ def create_prognose_verbraucher_datenreihen(
 
 		# Bestimme den Zeithorizont
 		if len(points_for_this_type) > 0:
-			last_target_time = points_for_this_type[-1].datetime
+			last_target_time = points_for_this_type[-1].datum
 		else:
 			last_target_time = consumption_df["Datum bis"].iloc[-1]
 
@@ -761,7 +751,6 @@ def create_prognose_verbraucher_datenreihen(
 			baseline_time=baseline_time,
 			baseline_value=baseline_consumption,
 			target_points=points_for_this_type,
-			value_getter=lambda p: p.verbraucht,
 		)
 
 		# Berechne die finale Prognose
@@ -804,8 +793,8 @@ class Ausbaupfad:
 
 	def __init__(
 		self,
-		erzeuger_datenpunkte: list[ErzeugerDatenpunkt],
-		verbraucher_datenpunkte: list[VerbraucherDatenpunkt],
+		erzeuger_datenpunkte: list[Installation],
+		verbraucher_datenpunkte: list[Verbrauch],
 		smard: Smard | None = None,
 	) -> None:
 		"""
@@ -841,7 +830,7 @@ class Ausbaupfad:
 			)
 		)
 
-	def get_erzeuger(self, art: ErzeugerArt) -> list[ErzeugerDatenpunkt]:
+	def get_erzeuger(self, art: ErzeugerArt) -> list[Installation]:
 		"""
 		Gibt die Eingabe-Datenpunkte für eine Erzeuger-Art zurück.
 

@@ -1,15 +1,42 @@
 import logging
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 import config
 from core.data import loader
-from core.prognose.datenpunkt import ErzeugerDatenpunkt, VerbraucherDatenpunkt
 from core.setup.erzeuger import ErzeugerArt
 from core.setup.verbraucher import VerbraucherArt
-from core.simulation.event import EventDatenpunkt, EventType
+from core.simulation.event import EreignisArt
+
+
+# Eine Zeile von Ausbaupfad-Ereignissen
+@dataclass
+class Ereignis:
+	anfang: datetime
+	ende: datetime
+	art: EreignisArt
+	intensitaet: float
+
+
+# Eine Zeile von Ausbaupfad-Installationen
+@dataclass
+class Installation:
+	datum: datetime
+	art: ErzeugerArt
+	wert: float
+
+
+# Eine Zeile von Ausbaupfad-Verbräuchen
+@dataclass
+class Verbrauch:
+	datum: datetime
+	art: VerbraucherArt
+	wert: float
+
 
 # Temporär
-type Ausbau = tuple[list[ErzeugerDatenpunkt], list[VerbraucherDatenpunkt], list[EventDatenpunkt]]
+type Ausbau = tuple[list[Ereignis], list[Installation], list[Verbrauch]]
 
 
 # Lädt einen einzelnen Ausbaupfad
@@ -17,9 +44,9 @@ def load(path: Path) -> Ausbau:
 	logging.info(f"Ausbaupfad wird gelesen: {path}")
 
 	# Listen anlegen
-	ereignisse: list[EventDatenpunkt] = []
-	installiert: list[ErzeugerDatenpunkt] = []
-	verbraucht: list[VerbraucherDatenpunkt] = []
+	ereignisse: list[Ereignis] = []
+	installiert: list[Installation] = []
+	verbraucht: list[Verbrauch] = []
 
 	# Ereignisse laden
 	joined = path.joinpath("ereignisse.csv")
@@ -28,10 +55,10 @@ def load(path: Path) -> Ausbau:
 		for _, row in loader.read_csv(joined).iterrows():
 			anfang = row["Datum von"]
 			ende = row["Datum bis"]
-			art = EventType(row["Art"])
+			art = EreignisArt(row["Art"])
 			intensitaet = row["Intensität"]
 
-			ereignisse.append(EventDatenpunkt(anfang, ende, art, intensitaet))
+			ereignisse.append(Ereignis(anfang, ende, art, intensitaet))
 
 	# Installiert laden
 	joined = path.joinpath("installiert.csv")
@@ -42,7 +69,7 @@ def load(path: Path) -> Ausbau:
 			art = ErzeugerArt(row["Art"])
 			wert = row["Wert"]
 
-			installiert.append(ErzeugerDatenpunkt(art, datum, wert))
+			installiert.append(Installation(datum, art, wert))
 
 	# Installiert laden
 	joined = path.joinpath("verbraucht.csv")
@@ -53,10 +80,10 @@ def load(path: Path) -> Ausbau:
 			art = VerbraucherArt(row["Art"])
 			wert = row["Wert"]
 
-			verbraucht.append(VerbraucherDatenpunkt(art, datum, wert))
+			verbraucht.append(Verbrauch(datum, art, wert))
 
 	# Listen zurückgeben
-	return installiert, verbraucht, ereignisse
+	return ereignisse, installiert, verbraucht
 
 
 # Lädt alle verfügbaren Ausbaupfade
