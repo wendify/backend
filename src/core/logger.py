@@ -27,4 +27,4 @@ def setup() -> None:
 
 	# Logger anpassen
 	logger.addHandler(handler)
-	logger.debug("Logger ist fertig eingerichtet")
+	logger.debug("Logger ist fertig eingerichtet!")

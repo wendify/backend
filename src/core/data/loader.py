@@ -32,7 +32,7 @@ def load_csv() -> tuple[DataFrame, DataFrame, DataFrame]:
 
 # Lädt eine einzelne CSV-Datei, auch wiederverwendbar für Ausbaupfade
 def read_csv(path: Path) -> DataFrame:
-	logging.info(f"CSV-Datei wird gelesen: {path}")
+	logging.debug(f"CSV-Datei wird gelesen: {path}")
 
 	try:
 		df = pandas.read_csv(path, decimal=",", na_values=["-"], sep=";", thousands=".").fillna(0)

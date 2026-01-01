@@ -20,6 +20,9 @@ class Smard:
 			self.__dict__.update(loaded.__dict__)
 			return
 
+		# Wenn Pickle nicht existiert, Objekt neu aufbauen
+		logging.info("SMARD-Instanz wird aufgebaut...")
+
 		# Rohe DataFrames aus den Dateien laden
 		self.installiert, self.realisiert, self.verbraucht = loader.load_csv()
 

@@ -59,7 +59,7 @@ class ErzeugerArt(StrEnum):
 				return 0.0
 
 
-# Repräsentiert einen spezieller Erzeuger
+# Repräsentiert einen speziellen Erzeuger
 class Erzeuger:
 	def __init__(self, art: ErzeugerArt, installiert: DataFrame, realisiert: DataFrame) -> None:
 		normiert = realisiert.copy()
