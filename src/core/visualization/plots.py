@@ -301,8 +301,8 @@ def create_realized_stackplot(
 	color_map = get_color_map(cols)
 
 	verbrauch_series = None
-	if ausbaupfad.prognose_verbraucher_datenreihen:
-		verbrauch_dr = ausbaupfad.prognose_verbraucher_datenreihen[0]
+	if ausbaupfad.prognose_verbraucher:
+		verbrauch_dr = ausbaupfad.prognose_verbraucher[0]
 		verbrauch_series = verbrauch_dr.df.set_index("Datum von")[verbrauch_dr.art]
 
 	resolution_list = list(RESOLUTION_OPTIONS.keys())
@@ -498,8 +498,8 @@ def create_surplus_plot(
 	fig = go.Figure()
 
 	verbrauch_series = None
-	if ausbaupfad.prognose_verbraucher_datenreihen:
-		verbrauch_dr = ausbaupfad.prognose_verbraucher_datenreihen[0]
+	if ausbaupfad.prognose_verbraucher:
+		verbrauch_dr = ausbaupfad.prognose_verbraucher[0]
 		verbrauch_series = verbrauch_dr.df.set_index("Datum von")[verbrauch_dr.art]
 
 	if verbrauch_series is None:
@@ -961,8 +961,8 @@ def create_comparison_stackplot(
 	color_map = get_color_map(cols)
 
 	verbrauch_series = None
-	if ausbaupfad.prognose_verbraucher_datenreihen:
-		verbrauch_dr = ausbaupfad.prognose_verbraucher_datenreihen[0]
+	if ausbaupfad.prognose_verbraucher:
+		verbrauch_dr = ausbaupfad.prognose_verbraucher[0]
 		verbrauch_series = verbrauch_dr.df.set_index("Datum von")[verbrauch_dr.art]
 
 	resolution_list = list(RESOLUTION_OPTIONS.keys())

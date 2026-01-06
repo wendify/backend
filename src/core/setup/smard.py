@@ -62,13 +62,11 @@ class Smard:
 		try:
 			return next(e for e in self.erzeuger if e.art == art)
 		except StopIteration:
-			logging.error(f"Erzeuger nicht gefunden: {art}")
-			raise KeyError(art)
+			raise KeyError(f"Erzeuger nicht gefunden: {art}")
 
 	# Holt den Verbraucher mit der angegebenen Art
 	def get_verbraucher(self, art: VerbraucherArt) -> Verbraucher:
 		try:
 			return next(v for v in self.verbraucher if v.art == art)
 		except StopIteration:
-			logging.error(f"Verbraucher nicht gefunden: {art}")
-			raise KeyError(art)
+			raise KeyError(f"Verbraucher nicht gefunden: {art}")

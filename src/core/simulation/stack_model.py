@@ -363,20 +363,20 @@ def apply_stack_model_to_ausbaupfad(
 
 	# Maximal verfügbare Erzeugung aus Prognose-Zeitreihen extrahieren
 	max_available_datenreihen: Dict[ErzeugerArt, Datenreihe] = {}
-	for datenreihe in ausbaupfad.prognose_datenreihen:
+	for datenreihe in ausbaupfad.prognose_erzeuger:
 		art = datenreihe.art
 		df = datenreihe.df[["Datum von", "Datum bis", art]].copy()
 		max_available_datenreihen[art] = Datenreihe(art, df)
 
 	# Verbrauchsreihe wählen
 	verbrauch_datenreihe = None
-	if ausbaupfad.prognose_verbraucher_datenreihen:
-		for dr in ausbaupfad.prognose_verbraucher_datenreihen:
+	if ausbaupfad.prognose_verbraucher:
+		for dr in ausbaupfad.prognose_verbraucher:
 			if dr.art == verbrauch_art:
 				verbrauch_datenreihe = dr
 				break
 		if verbrauch_datenreihe is None:
-			verbrauch_datenreihe = ausbaupfad.prognose_verbraucher_datenreihen[0]
+			verbrauch_datenreihe = ausbaupfad.prognose_verbraucher[0]
 
 	if verbrauch_datenreihe is None:
 		verbrauch_datenreihe = smard.get_verbraucher(verbrauch_art).verbraucht

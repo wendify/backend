@@ -1,20 +1,7 @@
-"""
-Main application module.
-
-This is the entry point for the energy transition simulation.
-It orchestrates:
-1. SMARD data loading
-2. Scenario configuration
-3. Prognosis calculation (Ausbaupfad)
-4. Stack model simulation
-5. Visualization (Plotly in browser)
-"""
-
 import logging
 import time
 
 from core.prognose import loader
-from core.prognose.ausbaupfad import Ausbaupfad
 from core.setup.datenreihe import Datenreihe
 from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
@@ -25,78 +12,79 @@ from core.simulation.stack_model import apply_stack_model_to_ausbaupfad
 from core.visualization.plots import show_all_plots
 
 
+# Die Hauptklasse dieses Projekts
 class App:
-	"""
-	Main application class.
-
-	Wires together:
-	- Data sources (SMARD)
-	- Scenarios (future capacity targets)
-	- Simulation (stack model)
-	- Visualization (Plotly interactive plots)
-	"""
-
 	def __init__(self) -> None:
-		"""Initialize the application with API and data source."""
+		# SMARD-Daten vor der Simulation laden
 		self.smard = Smard()
 
+	# Startet die Simulation
 	def run(self) -> None:
-		"""
-		Run the complete energy transition simulation:
-
-		1. Load scenario (expansion targets)
-		2. Build Ausbaupfad (forecast time series)
-		3. Apply stack model (convert potential to realized generation)
-		4. Show interactive plots in browser
-		"""
 		logging.info("Simulation wird gestartet...")
+
+		# Gesamte Zeitmessung starten
 		total_start = time.time()
 
-		# =====================================================================
-		# Step 1: Load scenario from CSV files
-		# =====================================================================
-		print("\n=== Schritt 1: Szenario laden ===")
-		szenario_name, (event_datenpunkte, datenpunkte, verbraucher_datenpunkte) = next(
-			iter(loader.load_all().items())
-		)
-		print(f"  Szenario '{szenario_name}' geladen")
-		print(f"  {len(datenpunkte)} Erzeuger-Datenpunkte")
-		print(f"  {len(verbraucher_datenpunkte)} Verbraucher-Datenpunkte")
-		print(f"  {len(event_datenpunkte)} Event-Datenpunkte")
+		# Schritt 1
+		print("\n=== Schritt 1: Ausbaupfade laden ===")
+		ausbaupfade = loader.load_all()
 
-		# =====================================================================
-		# Step 2: Build Ausbaupfad (forecast)
-		# =====================================================================
-		print("\n=== Schritt 2: Ausbaupfad erstellen ===")
+		# Abbrechen, wenn keine Ausbaupfade existieren
+		if not ausbaupfade:
+			raise FileNotFoundError("Kein Ausbaupfad gefunden!")
+
+		# Wenn nur ein Ausbaupfad, diesen nehmen
+		if len(ausbaupfade) == 1:
+			ausbaupfad = ausbaupfade[0]
+
+		# Ansonsten durch Eingabe auswählen lassen
+		else:
+			names = ", ".join(sorted(a.name for a in ausbaupfade))
+			name = input(f"Ausbaupfad auswählen [{names}]: ")
+
+			try:
+				ausbaupfad = next(a for a in ausbaupfade if a.name == name)
+			except StopIteration:
+				raise FileNotFoundError("Ausbaupfad nicht gefunden!")
+
+		# Informationen zum Ausbaupfad ausgeben
+		print(f"Ausbaupfad ausgewählt: {ausbaupfad.name}")
+		print(f"Installationen: {len(ausbaupfad.installiert)}", end=", ")
+		print(f"Verbräuche: {len(ausbaupfad.verbraucht)}", end=", ")
+		print(f"Ereignisse: {len(ausbaupfad.ereignisse)}")
+
+		# Schritt 2
+		print("\n=== Schritt 2: Ausbaupfad verarbeiten ===")
 		step_start = time.time()
 
-		ausbaupfad = Ausbaupfad(datenpunkte, verbraucher_datenpunkte, smard=self.smard)
-
+		ausbaupfad.process(self.smard)
 		step_duration = time.time() - step_start
-		print(f"  Ausbaupfad erstellt in {step_duration:.2f} Sekunden")
-		print(f"  {len(ausbaupfad.prognose_datenreihen)} Prognose-Datenreihen")
+
+		print(f"Ausbaupfad erstellt in {step_duration} Sekunden")
+		print(f"Erzeuger-Datenreihen: {len(ausbaupfad.prognose_erzeuger)}", end=", ")
+		print(f"Verbraucher-Datenreihen: {len(ausbaupfad.prognose_verbraucher)}")
 
 		# =====================================================================
 		# Step 2.5: Apply Events to Prognose (before stack model)
 		# =====================================================================
-		if event_datenpunkte:
+		if ausbaupfad.ereignisse:
 			print("\n=== Schritt 2.5: Events auf Prognose anwenden ===")
 			step_start = time.time()
 
 			# Konvertiere Liste zu Dict für Event-Anwendung
 			prognose_dict: dict[ErzeugerArt, Datenreihe] = {}
-			for datenreihe in ausbaupfad.prognose_datenreihen:
+			for datenreihe in ausbaupfad.prognose_erzeuger:
 				prognose_dict[datenreihe.art] = datenreihe
 
 			# Events anwenden
-			modifizierte_prognose = apply_events_to_realized(prognose_dict, event_datenpunkte)
+			modifizierte_prognose = apply_events_to_realized(prognose_dict, ausbaupfad.ereignisse)
 
 			# Zurück zu Liste konvertieren und Ausbaupfad aktualisieren
-			ausbaupfad.prognose_datenreihen = list(modifizierte_prognose.values())
+			ausbaupfad.prognose_erzeuger = list(modifizierte_prognose.values())
 
 			step_duration = time.time() - step_start
-			print(f"  {len(event_datenpunkte)} Events angewendet")
-			for event in event_datenpunkte:
+			print(f"  {len(ausbaupfad.ereignisse)} Events angewendet")
+			for event in ausbaupfad.ereignisse:
 				print(
 					f"    - {event.art.value}: {event.anfang.date()} bis {event.ende.date()} (Intensität: {event.intensitaet})"
 				)
@@ -144,7 +132,7 @@ class App:
 		show_all_plots(
 			ausbaupfad=ausbaupfad,
 			realisiert_datenreihen=realisiert_datenreihen,
-			datenpunkte=datenpunkte,
+			datenpunkte=ausbaupfad.installiert,
 			smard=self.smard,
 			co2_df=co2_df,
 			default_resolution="1 Woche",

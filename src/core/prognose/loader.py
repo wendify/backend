@@ -1,46 +1,17 @@
 import logging
-from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 
 import config
 from core.data import loader
+from core.prognose.ausbaupfad import Ausbaupfad
+from core.prognose.types import Ereignis, Installation, Verbrauch
 from core.setup.erzeuger import ErzeugerArt
 from core.setup.verbraucher import VerbraucherArt
 from core.simulation.event import EreignisArt
 
 
-# Eine Zeile von Ausbaupfad-Ereignissen
-@dataclass
-class Ereignis:
-	anfang: datetime
-	ende: datetime
-	art: EreignisArt
-	intensitaet: float
-
-
-# Eine Zeile von Ausbaupfad-Installationen
-@dataclass
-class Installation:
-	datum: datetime
-	art: ErzeugerArt
-	wert: float
-
-
-# Eine Zeile von Ausbaupfad-Verbräuchen
-@dataclass
-class Verbrauch:
-	datum: datetime
-	art: VerbraucherArt
-	wert: float
-
-
-# Temporär
-type Ausbau = tuple[list[Ereignis], list[Installation], list[Verbrauch]]
-
-
 # Lädt einen einzelnen Ausbaupfad
-def load(path: Path) -> Ausbau:
+def load(path: Path) -> Ausbaupfad:
 	logging.info(f"Ausbaupfad wird gelesen: {path}")
 
 	# Listen anlegen
@@ -71,7 +42,7 @@ def load(path: Path) -> Ausbau:
 
 			installiert.append(Installation(datum, art, wert))
 
-	# Installiert laden
+	# Verbraucht laden
 	joined = path.joinpath("verbraucht.csv")
 
 	if joined.is_file():
@@ -82,18 +53,18 @@ def load(path: Path) -> Ausbau:
 
 			verbraucht.append(Verbrauch(datum, art, wert))
 
-	# Listen zurückgeben
-	return ereignisse, installiert, verbraucht
+	# Ausbaupfad erstellen und zurückgeben
+	return Ausbaupfad(path.name, ereignisse, installiert, verbraucht)
 
 
 # Lädt alle verfügbaren Ausbaupfade
-def load_all() -> dict[str, Ausbau]:
-	ausbaupfade: dict[str, Ausbau] = {}
+def load_all() -> list[Ausbaupfad]:
+	ausbaupfade: list[Ausbaupfad] = []
 
 	# Alle Unterverzeichnisse einzeln laden
 	for path in config.AUSBAU_DIR.iterdir():
 		if path.is_dir():
-			ausbaupfade[path.name] = load(path)
+			ausbaupfade.append(load(path))
 
 	# Ausbaupfade zurückgeben
 	return ausbaupfade

@@ -217,7 +217,7 @@ def prepare_plot_dataframes(
 		Tuple of (df_prognose, df_realisiert, columns)
 	"""
 	# Prognose data
-	df_prognose = merge_datenreihen_to_dataframe(ausbaupfad.prognose_datenreihen)
+	df_prognose = merge_datenreihen_to_dataframe(ausbaupfad.prognose_erzeuger)
 
 	# Realized data
 	realisiert_list = list(realisiert_datenreihen.values())

@@ -1,5 +1,4 @@
 import logging
-import sys
 from pathlib import Path
 
 import pandas
@@ -37,8 +36,7 @@ def read_csv(path: Path) -> DataFrame:
 	try:
 		df = pandas.read_csv(path, decimal=",", na_values=["-"], sep=";", thousands=".").fillna(0)
 	except FileNotFoundError:
-		logging.error(f"CSV-Datei nicht gefunden: {path}")
-		sys.exit()
+		raise FileNotFoundError(f"CSV-Datei nicht gefunden: {path}")
 
 	# Zusätze wie [MW] oder [MWh] aus Spaltennamen streichen
 	df.columns = [column.split("[")[0].strip() for column in df.columns]

@@ -18,41 +18,11 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 import config
-from core.prognose.loader import Installation, Verbrauch
+from core.prognose.types import Ereignis, Installation, Verbrauch
 from core.setup.datenreihe import Datenreihe
 from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
 from core.setup.verbraucher import VerbraucherArt
-
-# =============================================================================
-# VALIDIERUNG
-# =============================================================================
-
-
-def validate_datenpunkte(datenpunkte: list[Installation]) -> bool:
-	"""
-	Prüft, ob die Datenpunkte-Liste gültig ist.
-
-	Args:
-		datenpunkte: Liste von ErzeugerDatenpunkt-Objekten
-
-	Returns:
-		True wenn gültig
-
-	Raises:
-		ValueError: Wenn die Liste ungültig ist
-	"""
-	# Prüfe: Ist es überhaupt eine Liste?
-	if not isinstance(datenpunkte, list):
-		raise ValueError("Datenpunkte ist keine Liste")
-
-	# Prüfe: Sind alle Einträge ErzeugerDatenpunkt?
-	for punkt in datenpunkte:
-		if not isinstance(punkt, Installation):
-			raise ValueError("Mindestens ein Eintrag ist kein ErzeugerDatenpunkt")
-
-	return True
-
 
 # =============================================================================
 # HILFSFUNKTIONEN FÜR ZEITRASTER
@@ -529,10 +499,10 @@ def ergaenze_erzeuger_datenpunkte(
 # =============================================================================
 
 
-def create_prognose_datenreihen(
+def create_prognose_erzeuger(
 	datenpunkte: list[Installation],
 	smard: Smard,
-) -> list[Datenreihe]:
+) -> list[Datenreihe[ErzeugerArt]]:
 	"""
 	Erzeugt Prognose-Datenreihen für alle Erzeuger-Arten.
 
@@ -655,10 +625,10 @@ def create_prognose_datenreihen(
 # =============================================================================
 
 
-def create_prognose_verbraucher_datenreihen(
+def create_prognose_verbraucher(
 	datenpunkte: list[Verbrauch],
 	smard: Smard,
-) -> list[Datenreihe]:
+) -> list[Datenreihe[VerbraucherArt]]:
 	"""
 	Erzeugt Prognose-Datenreihen für Verbraucher-Arten.
 
@@ -778,72 +748,36 @@ def create_prognose_verbraucher_datenreihen(
 # =============================================================================
 
 
+# Ein aus den CSV-Dateien gelesener Ausbaupfad
 class Ausbaupfad:
-	"""
-	Verwaltet den Ausbaupfad für Erzeuger und Verbraucher.
-
-	Ein Ausbaupfad beschreibt, wie sich die installierte Leistung (bei Erzeugern)
-	bzw. der Verbrauch (bei Verbrauchern) über die Zeit entwickeln soll.
-
-	Beispiel:
-	- Heute: 50 GW Photovoltaik installiert
-	- 2030: 100 GW Photovoltaik geplant
-	- Der Ausbaupfad interpoliert dazwischen und berechnet die Prognose
-	"""
-
 	def __init__(
 		self,
-		erzeuger_datenpunkte: list[Installation],
-		verbraucher_datenpunkte: list[Verbrauch],
-		smard: Smard | None = None,
+		name: str,
+		ereignisse: list[Ereignis],
+		installiert: list[Installation],
+		verbraucht: list[Verbrauch],
 	) -> None:
-		"""
-		Initialisiert den Ausbaupfad.
+		# Name des Ausbaupfades = Ordnername
+		self.name = name
 
-		Args:
-			erzeuger_datenpunkte: Liste von Ziel-Datenpunkten für Erzeuger
-			verbraucher_datenpunkte: Liste von Ziel-Datenpunkten für Verbraucher
-			smard: SMARD-Datenobjekt mit historischen Daten
-		"""
-		# Validiere die Eingabe
-		if not validate_datenpunkte(erzeuger_datenpunkte):
-			logging.error("Validierung fehlgeschlagen!")
-			raise ValueError("Validierung fehlgeschlagen!")
+		# Rohe Daten vorerst speichern
+		self.ereignisse = ereignisse
+		self.installiert = installiert
+		self.verbraucht = verbraucht
+
+	# Verarbeitet diesen Ausbaupfad
+	def process(self, smard: Smard) -> None:
+		logging.info(f"Ausbaupfad wird verarbeitet: {self.name}")
 
 		# Ergänze fehlende Erzeuger-Arten
-		self.datenpunkte = ergaenze_erzeuger_datenpunkte(erzeuger_datenpunkte, smard)
-
-		# Speichere Verbraucher-Datenpunkte
-		self.verbraucher_datenpunkte = verbraucher_datenpunkte
+		# self.installiert = ergaenze_erzeuger_datenpunkte(self.installiert, smard)
 
 		# Erstelle Prognose-Datenreihen für Erzeuger
-		self.prognose_datenreihen: list[Datenreihe] = create_prognose_datenreihen(
-			self.datenpunkte,
-			smard,
-		)
+		self.prognose_erzeuger = create_prognose_erzeuger(self.installiert, smard)
 
 		# Erstelle Prognose-Datenreihen für Verbraucher
-		self.prognose_verbraucher_datenreihen: list[Datenreihe] = (
-			create_prognose_verbraucher_datenreihen(
-				self.verbraucher_datenpunkte,
-				smard,
-			)
-		)
+		self.prognose_verbraucher = create_prognose_verbraucher(self.verbraucht, smard)
 
+	# Holt den Erzeuger mit der angegebenen Art
 	def get_erzeuger(self, art: ErzeugerArt) -> list[Installation]:
-		"""
-		Gibt die Eingabe-Datenpunkte für eine Erzeuger-Art zurück.
-
-		Nützlich um z.B. im UI die eingegebenen Zielwerte anzuzeigen.
-
-		Args:
-			art: Die gewünschte Erzeuger-Art
-
-		Returns:
-			Liste der Datenpunkte für diese Art
-		"""
-		result = []
-		for punkt in self.datenpunkte:
-			if punkt.art == art:
-				result.append(punkt)
-		return result
+		return [punkt for punkt in self.installiert if punkt.art == art]

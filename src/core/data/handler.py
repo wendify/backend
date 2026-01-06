@@ -1,9 +1,9 @@
 import logging
-import sys
 from pathlib import Path
 from typing import TypedDict
 
 import requests
+from requests import HTTPError
 
 import config
 
@@ -45,8 +45,7 @@ def download(ids: list[int], path: Path) -> None:
 	with requests.post(config.SMARD_URL, json=request) as response:
 		# Bei HTTP-Fehler diesen ausgeben und beenden
 		if not response.ok:
-			logging.error(response.text)
-			sys.exit()
+			raise HTTPError(f"Herunterladen fehlgeschlagen: {response.text}")
 
 		# Inhalt in die angegebene Datei schreiben
 		with open(path, "wb") as file:
