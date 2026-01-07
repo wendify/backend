@@ -770,7 +770,7 @@ class Ausbaupfad:
 		logging.info(f"Ausbaupfad wird verarbeitet: {self.name}")
 
 		# Ergänze fehlende Erzeuger-Arten
-		# self.installiert = ergaenze_erzeuger_datenpunkte(self.installiert, smard)
+		self.installiert = ergaenze_erzeuger_datenpunkte(self.installiert, smard)
 
 		# Erstelle Prognose-Datenreihen für Erzeuger
 		self.prognose_erzeuger = create_prognose_erzeuger(self.installiert, smard)

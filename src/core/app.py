@@ -2,12 +2,11 @@ import logging
 import time
 
 from core.prognose import loader
-from core.setup.datenreihe import Datenreihe
 from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
 from core.setup.verbraucher import VerbraucherArt
 from core.simulation.co2_calc import calculate_co2_emissions
-from core.simulation.simulator import apply_events_to_realized
+from core.simulation.simulator import apply_events
 from core.simulation.stack_model import apply_stack_model_to_ausbaupfad
 from core.visualization.plots import show_all_plots
 
@@ -64,31 +63,15 @@ class App:
 		print(f"Erzeuger-Datenreihen: {len(ausbaupfad.prognose_erzeuger)}", end=", ")
 		print(f"Verbraucher-Datenreihen: {len(ausbaupfad.prognose_verbraucher)}")
 
-		# =====================================================================
-		# Step 2.5: Apply Events to Prognose (before stack model)
-		# =====================================================================
-		if ausbaupfad.ereignisse:
-			print("\n=== Schritt 2.5: Events auf Prognose anwenden ===")
-			step_start = time.time()
+		# Schritt 2.5
+		print("\n=== Schritt 2.5: Events auf Prognose anwenden ===")
+		step_start = time.time()
 
-			# Konvertiere Liste zu Dict für Event-Anwendung
-			prognose_dict: dict[ErzeugerArt, Datenreihe] = {}
-			for datenreihe in ausbaupfad.prognose_erzeuger:
-				prognose_dict[datenreihe.art] = datenreihe
+		apply_events(ausbaupfad.prognose_erzeuger, ausbaupfad.ereignisse)
+		step_duration = time.time() - step_start
 
-			# Events anwenden
-			modifizierte_prognose = apply_events_to_realized(prognose_dict, ausbaupfad.ereignisse)
-
-			# Zurück zu Liste konvertieren und Ausbaupfad aktualisieren
-			ausbaupfad.prognose_erzeuger = list(modifizierte_prognose.values())
-
-			step_duration = time.time() - step_start
-			print(f"  {len(ausbaupfad.ereignisse)} Events angewendet")
-			for event in ausbaupfad.ereignisse:
-				print(
-					f"    - {event.art.value}: {event.anfang.date()} bis {event.ende.date()} (Intensität: {event.intensitaet})"
-				)
-			print(f"  Events dauerten: {step_duration:.2f} Sekunden")
+		print(f"Ereignisse angewendet in {step_duration} Sekunden")
+		print(f"Ereignisse: {len(ausbaupfad.ereignisse)}")
 
 		# =====================================================================
 		# Step 3: Apply stack model
