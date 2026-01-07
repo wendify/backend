@@ -7,7 +7,7 @@ from core.prognose.ausbaupfad import Ausbaupfad
 from core.prognose.types import Ereignis, Installation, Verbrauch
 from core.setup.erzeuger import ErzeugerArt
 from core.setup.verbraucher import VerbraucherArt
-from core.simulation.event import EreignisArt
+from core.simulation.ereignis import EreignisArt
 
 
 # Lädt einen einzelnen Ausbaupfad

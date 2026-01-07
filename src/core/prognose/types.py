@@ -3,7 +3,7 @@ from datetime import datetime
 
 from core.setup.erzeuger import ErzeugerArt
 from core.setup.verbraucher import VerbraucherArt
-from core.simulation.event import EreignisArt
+from core.simulation.ereignis import EreignisArt
 
 
 # Eine Zeile von Ausbaupfad-Ereignissen

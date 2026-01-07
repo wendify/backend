@@ -3,7 +3,7 @@ from enum import StrEnum
 from pandas import DataFrame
 
 from core.setup.datenreihe import Datenreihe
-from core.simulation.event import Gewichtung
+from core.simulation.ereignis import Gewichtung
 
 
 # Die möglichen Arten eines Erzeugers

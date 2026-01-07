@@ -1,9 +1,10 @@
 import dataclasses
+import logging
 
 from core.prognose.loader import Ereignis
 from core.setup.datenreihe import Datenreihe
 from core.setup.erzeuger import ErzeugerArt
-from core.simulation.event import Gewichtung
+from core.simulation.ereignis import Gewichtung
 
 
 # Bestimmt den Impakt von Kombination aus Ereignis und Erzeuger
@@ -27,9 +28,12 @@ def calculate_impact(art: ErzeugerArt, ereignis: Ereignis) -> float:
 
 # Wendet Ereignisse auf Datenreihen an
 def apply_events(datenreihen: list[Datenreihe[ErzeugerArt]], ereignisse: list[Ereignis]) -> None:
-	# Auf jede Datenreihe jedes Ereignis anwenden
-	for datenreihe in datenreihen:
-		for ereignis in ereignisse:
+	# Jedes Ereignis...
+	for ereignis in ereignisse:
+		logging.info(f"Ereignis: {ereignis.art} von {ereignis.anfang} bis {ereignis.ende}")
+
+		# ...auf jede Datenreihe anwenden
+		for datenreihe in datenreihen:
 			# Maske für Zeitbereich erstellen
 			maske = (datenreihe.anfang >= ereignis.anfang) & (datenreihe.ende < ereignis.ende)
 

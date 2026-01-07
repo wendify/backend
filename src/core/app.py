@@ -4,11 +4,8 @@ import time
 from core.prognose import loader
 from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
-from core.setup.verbraucher import VerbraucherArt
-from core.simulation.co2_calc import calculate_co2_emissions
-from core.simulation.simulator import apply_events
-from core.simulation.stack_model import apply_stack_model_to_ausbaupfad
-from core.visualization.plots import show_all_plots
+from core.simulation import co2_calc, simulator, stack_model
+from core.visualization import plots
 
 
 # Die Hauptklasse dieses Projekts
@@ -59,60 +56,46 @@ class App:
 		ausbaupfad.process(self.smard)
 		step_duration = time.time() - step_start
 
-		print(f"Ausbaupfad erstellt in {step_duration} Sekunden")
+		print(f"Ausbaupfad erstellt in {step_duration:.2f} Sekunden")
 		print(f"Erzeuger-Datenreihen: {len(ausbaupfad.prognose_erzeuger)}", end=", ")
 		print(f"Verbraucher-Datenreihen: {len(ausbaupfad.prognose_verbraucher)}")
 
-		# Schritt 2.5
-		print("\n=== Schritt 2.5: Events auf Prognose anwenden ===")
+		# Schritt 3
+		print("\n=== Schritt 3: Ereignisse auf Prognose anwenden ===")
 		step_start = time.time()
 
-		apply_events(ausbaupfad.prognose_erzeuger, ausbaupfad.ereignisse)
+		simulator.apply_events(ausbaupfad.prognose_erzeuger, ausbaupfad.ereignisse)
 		step_duration = time.time() - step_start
 
-		print(f"Ereignisse angewendet in {step_duration} Sekunden")
+		print(f"Ereignisse angewendet in {step_duration:.2f} Sekunden")
 		print(f"Ereignisse: {len(ausbaupfad.ereignisse)}")
 
-		# =====================================================================
-		# Step 3: Apply stack model
-		# =====================================================================
-		print("\n=== Schritt 3: Stack-Modell anwenden ===")
+		# Schritt 4
+		print("\n=== Schritt 4: Stack-Modell anwenden ===")
 		step_start = time.time()
 
-		realisiert_datenreihen = apply_stack_model_to_ausbaupfad(
-			ausbaupfad=ausbaupfad,
-			smard=self.smard,
-			verbrauch_art=VerbraucherArt.Netzlast,
-		)
-
+		realisiert_datenreihen = stack_model.apply_stack_model_to_ausbaupfad(ausbaupfad, self.smard)
 		step_duration = time.time() - step_start
-		print(f"  Realisierte Erzeugung für {len(realisiert_datenreihen)} Erzeuger berechnet")
-		print(f"  Stack-Modell dauerte: {step_duration:.2f} Sekunden")
 
-		# =====================================================================
-		# Step 3.5: CO2 Calculation
-		# =====================================================================
-		print("\n=== Schritt 3.5: CO2-Berechnung ===")
+		print(f"Stack-Modell angewendet in {step_duration:.2f} Sekunden")
+		print(f"Erzeugte Datenreihen: {len(realisiert_datenreihen)}")
+
+		# Schritt 5
+		print("\n=== Schritt 5: CO2-Berechnung ===")
 		step_start = time.time()
 
-		co2_df = calculate_co2_emissions(realisiert_datenreihen)
-
+		co2_df = co2_calc.calculate_co2_emissions(realisiert_datenreihen)
 		step_duration = time.time() - step_start
-		print(f"  CO2-Daten für {len(co2_df.columns)} Erzeuger berechnet")
-		print(f"  CO2-Berechnung dauerte: {step_duration:.2f} Sekunden")
 
-		# =====================================================================
-		# Step 4: Visualization (Plotly in browser)
-		# =====================================================================
-		print("\n=== Schritt 4: Visualisierung ===")
+		print(f"CO2-Emissionen berechnet in {step_duration:.2f} Sekunden")
+		print(f"Erzeugte Datenreihen: {len(co2_df.columns)}")
 
-		total_duration = time.time() - total_start
-		print(
-			f"\n=== Gesamtdauer: {total_duration:.2f} Sekunden ({total_duration / 60:.2f} Minuten) ===\n"
-		)
+		# Schritt 6
+		print("\n=== Schritt 6: Visualisierung im Browser ===")
+		step_start = time.time()
 
-		# Show interactive Plotly plots in browser
-		show_all_plots(
+		# TODO: Plots komplett erneuern
+		plots.show_all_plots(
 			ausbaupfad=ausbaupfad,
 			realisiert_datenreihen=realisiert_datenreihen,
 			datenpunkte=ausbaupfad.installiert,
@@ -121,3 +104,9 @@ class App:
 			default_resolution="1 Woche",
 			debug_art=ErzeugerArt.Steinkohle,
 		)
+
+		step_duration = time.time() - step_start
+		total_duration = time.time() - total_start
+
+		print(f"Plots generiert in {step_duration:.2f} Sekunden")
+		print(f"\n=== Gesamtdauer: {total_duration:.2f} Sekunden ===")
