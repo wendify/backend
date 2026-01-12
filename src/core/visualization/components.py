@@ -8,9 +8,8 @@ Provides:
 - Common styling
 """
 
-from typing import Dict, List
-
-import pandas as pd
+import pandas
+from pandas import DataFrame
 
 from core.setup.erzeuger import ErzeugerArt
 
@@ -26,7 +25,7 @@ RESOLUTION_OPTIONS = {
 }
 
 
-def resample_dataframe(df: pd.DataFrame, resolution: str) -> pd.DataFrame:
+def resample_dataframe(df: DataFrame, resolution: str) -> DataFrame:
 	"""
 	Resample a time-indexed DataFrame to a different resolution.
 
@@ -73,7 +72,7 @@ def get_color(art: ErzeugerArt) -> str:
 	return GENERATOR_COLORS.get(art, "#999999")
 
 
-def get_color_map(arts: List[ErzeugerArt]) -> Dict[ErzeugerArt, str]:
+def get_color_map(arts: list[ErzeugerArt]) -> dict[ErzeugerArt, str]:
 	"""
 	Get a color mapping for a list of generator types.
 
@@ -111,7 +110,7 @@ COMMON_LAYOUT = {
 def add_vertical_markers(
 	fig,
 	smard_end,
-	datenpunkt_times: List,
+	datenpunkt_times: list,
 ) -> None:
 	"""
 	Add vertical marker lines to a Plotly figure.
@@ -180,7 +179,7 @@ def add_vertical_markers(
 # =============================================================================
 
 
-def merge_datenreihen_to_dataframe(datenreihen: list) -> pd.DataFrame:
+def merge_datenreihen_to_dataframe(datenreihen: list) -> DataFrame:
 	"""
 	Merge multiple Datenreihen into a single DataFrame.
 
@@ -191,20 +190,20 @@ def merge_datenreihen_to_dataframe(datenreihen: list) -> pd.DataFrame:
 		DataFrame with time index and one column per Datenreihe
 	"""
 	if not datenreihen:
-		return pd.DataFrame()
+		return DataFrame()
 
 	data_series_list = []
 	for dr in datenreihen:
 		series = dr.df.set_index("Datum von")[dr.art]
 		data_series_list.append(series)
 
-	merged_df = pd.concat(data_series_list, axis=1).fillna(0)
+	merged_df = pandas.concat(data_series_list, axis=1).fillna(0)
 	return merged_df
 
 
 def prepare_plot_dataframes(
 	ausbaupfad,
-	realisiert_datenreihen: Dict,
+	realisiert_datenreihen: dict,
 ) -> tuple:
 	"""
 	Prepare all DataFrames needed for visualization.

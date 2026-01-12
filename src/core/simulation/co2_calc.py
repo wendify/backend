@@ -5,17 +5,15 @@ This module calculates CO2 emissions for each energy producer based on
 their realized generation (from the stack model) and their emission factors.
 """
 
-from typing import Dict
-
-import pandas as pd
+from pandas import DataFrame
 
 from core.setup.datenreihe import Datenreihe
 from core.setup.erzeuger import ErzeugerArt
 
 
 def calculate_co2_emissions(
-	realisiert_datenreihen: Dict[ErzeugerArt, Datenreihe],
-) -> pd.DataFrame:
+	realisiert_datenreihen: dict[ErzeugerArt, Datenreihe],
+) -> DataFrame:
 	"""
 	Calculate CO2 emissions for each producer based on realized generation.
 
@@ -35,7 +33,7 @@ def calculate_co2_emissions(
 			- Columns: One column per ErzeugerArt with CO2 emissions in tonnes
 	"""
 	if not realisiert_datenreihen:
-		return pd.DataFrame()
+		return DataFrame()
 
 	# Get one Datenreihe to extract the time index
 	first_datenreihe = next(iter(realisiert_datenreihen.values()))
@@ -53,7 +51,7 @@ def calculate_co2_emissions(
 		time_step_hours = 0.25
 
 	# Create result DataFrame
-	result_df = pd.DataFrame()
+	result_df = DataFrame()
 	result_df["Datum von"] = time_index
 	result_df = result_df.set_index("Datum von")
 

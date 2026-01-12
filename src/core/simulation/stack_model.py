@@ -14,10 +14,10 @@ Logik:
 """
 
 import time
-from typing import Dict, List
 
-import numpy as np
-import pandas as pd
+import numpy
+from numpy import float64
+from pandas import DataFrame, Timedelta
 
 from core.prognose.ausbaupfad import Ausbaupfad
 from core.setup.datenreihe import Datenreihe
@@ -40,11 +40,11 @@ EPS = 1e-9
 
 
 def calculate_realized_generation(
-	max_available_datenreihen: Dict[ErzeugerArt, Datenreihe],
+	max_available_datenreihen: dict[ErzeugerArt, Datenreihe],
 	verbrauch_datenreihe: Datenreihe,
 	smard: Smard,
-	previous_realisiert: Dict[ErzeugerArt, Datenreihe] | None = None,
-) -> Dict[ErzeugerArt, Datenreihe]:
+	previous_realisiert: dict[ErzeugerArt, Datenreihe] | None = None,
+) -> dict[ErzeugerArt, Datenreihe]:
 	"""
 	Berechnet die realisierte Erzeugung aus der maximal verfügbaren Erzeugung je Zeitschritt.
 
@@ -69,7 +69,7 @@ def calculate_realized_generation(
 	verbrauch_werte = verbrauch_nach_zeit[verbrauch_datenreihe.art]
 
 	# Alle Erzeuger-Daten auf denselben Zeitindex bringen
-	max_verfuegbar_df = pd.DataFrame(index=zeitindex)
+	max_verfuegbar_df = DataFrame(index=zeitindex)
 	for erzeuger_art, datenreihe in max_available_datenreihen.items():
 		erzeuger_nach_zeit = datenreihe.df.set_index("Datum von")
 		if erzeuger_nach_zeit.index.has_duplicates:
@@ -87,15 +87,15 @@ def calculate_realized_generation(
 	# Regulation-Werte holen und Erzeuger klassifizieren
 	# ==========================================================================
 
-	regulation_werte = np.zeros(anzahl_erzeuger, dtype=np.float64)
+	regulation_werte = numpy.zeros(anzahl_erzeuger, dtype=float64)
 	for erzeuger_art in alle_erzeuger:
 		erzeuger = smard.get_erzeuger(erzeuger_art)
 		index = erzeuger_zu_index[erzeuger_art]
 		regulation_werte[index] = float(erzeuger.art.regulierung)
 
 	# Erneuerbare vs Regelbare trennen
-	erneuerbare_indizes: List[int] = []
-	regelbare_indizes: List[int] = []
+	erneuerbare_indizes: list[int] = []
+	regelbare_indizes: list[int] = []
 
 	for index in range(anzahl_erzeuger):
 		if regulation_werte[index] <= EPS:
@@ -104,7 +104,7 @@ def calculate_realized_generation(
 			regelbare_indizes.append(index)
 
 	# Reihenfolge zum Hochfahren (nach Priorität)
-	prioritaets_indizes: List[int] = []
+	prioritaets_indizes: list[int] = []
 	for erzeuger_art in PRIORITY_ORDER:
 		if erzeuger_art in erzeuger_zu_index:
 			index = erzeuger_zu_index[erzeuger_art]
@@ -121,14 +121,14 @@ def calculate_realized_generation(
 	# Daten in numpy Arrays umwandeln (schneller für Berechnungen)
 	# ==========================================================================
 
-	max_verfuegbar_array = np.zeros((anzahl_zeitschritte, anzahl_erzeuger), dtype=np.float64)
+	max_verfuegbar_array = numpy.zeros((anzahl_zeitschritte, anzahl_erzeuger), dtype=float64)
 	for index, erzeuger_art in enumerate(alle_erzeuger):
-		max_verfuegbar_array[:, index] = max_verfuegbar_df[erzeuger_art].values.astype(np.float64)
+		max_verfuegbar_array[:, index] = max_verfuegbar_df[erzeuger_art].values.astype(float64)
 
-	verbrauch_array = verbrauch_werte.values.astype(np.float64)
+	verbrauch_array = verbrauch_werte.values.astype(float64)
 
 	# Vorheriger realisierter Zustand (für Ramp-Limits)
-	vorherige_erzeugung = np.zeros(anzahl_erzeuger, dtype=np.float64)
+	vorherige_erzeugung = numpy.zeros(anzahl_erzeuger, dtype=float64)
 	if previous_realisiert is not None:
 		for erzeuger_art, datenreihe in previous_realisiert.items():
 			if erzeuger_art in erzeuger_zu_index:
@@ -144,11 +144,11 @@ def calculate_realized_generation(
 	# Hauptberechnung: Zeitschritt für Zeitschritt
 	# ==========================================================================
 
-	ergebnis_array = np.zeros((anzahl_zeitschritte, anzahl_erzeuger), dtype=np.float64)
+	ergebnis_array = numpy.zeros((anzahl_zeitschritte, anzahl_erzeuger), dtype=float64)
 
 	# Arbeits-Arrays für jeden Zeitschritt
-	aktuelle_erzeugung = np.zeros(anzahl_erzeuger, dtype=np.float64)
-	mindest_erzeugung = np.zeros(anzahl_erzeuger, dtype=np.float64)
+	aktuelle_erzeugung = numpy.zeros(anzahl_erzeuger, dtype=float64)
+	mindest_erzeugung = numpy.zeros(anzahl_erzeuger, dtype=float64)
 
 	print(f"Berechne {anzahl_zeitschritte} Zeitschritte...")
 	start_zeit = time.time()
@@ -161,7 +161,7 @@ def calculate_realized_generation(
 	if anzahl_zeitschritte >= 2:
 		zeitschritt_dauer = zeitindex[1] - zeitindex[0]
 	else:
-		zeitschritt_dauer = pd.Timedelta(minutes=15)
+		zeitschritt_dauer = Timedelta(minutes=15)
 
 	for zeitschritt_index in range(anzahl_zeitschritte):
 		max_verfuegbar_jetzt = max_verfuegbar_array[zeitschritt_index]
@@ -338,12 +338,12 @@ def calculate_realized_generation(
 	# Ergebnisse zurück in Datenreihen umwandeln
 	# ==========================================================================
 
-	ergebnis_dict: Dict[ErzeugerArt, Datenreihe] = {}
+	ergebnis_dict: dict[ErzeugerArt, Datenreihe] = {}
 	datum_von_array = zeitindex.to_numpy()
 	datum_bis_array = (zeitindex + zeitschritt_dauer).to_numpy()
 
 	for index, erzeuger_art in enumerate(alle_erzeuger):
-		df = pd.DataFrame()
+		df = DataFrame()
 		df["Datum von"] = datum_von_array
 		df["Datum bis"] = datum_bis_array
 		df[erzeuger_art] = ergebnis_array[:, index]
@@ -356,13 +356,13 @@ def apply_stack_model_to_ausbaupfad(
 	ausbaupfad: Ausbaupfad,
 	smard: Smard,
 	verbrauch_art: VerbraucherArt = VerbraucherArt.Netzlast,
-) -> Dict[ErzeugerArt, Datenreihe]:
+) -> dict[ErzeugerArt, Datenreihe]:
 	"""
 	Wendet den Stack-Modell-Algorithmus auf einen Ausbaupfad an.
 	"""
 
 	# Maximal verfügbare Erzeugung aus Prognose-Zeitreihen extrahieren
-	max_available_datenreihen: Dict[ErzeugerArt, Datenreihe] = {}
+	max_available_datenreihen: dict[ErzeugerArt, Datenreihe] = {}
 	for datenreihe in ausbaupfad.prognose_erzeuger:
 		art = datenreihe.art
 		df = datenreihe.df[["Datum von", "Datum bis", art]].copy()
@@ -382,7 +382,7 @@ def apply_stack_model_to_ausbaupfad(
 		verbrauch_datenreihe = smard.get_verbraucher(verbrauch_art).verbraucht
 
 	# Startzustand aus SMARD (prev_realized)
-	previous_realisiert: Dict[ErzeugerArt, Datenreihe] = {}
+	previous_realisiert: dict[ErzeugerArt, Datenreihe] = {}
 	for art in max_available_datenreihen.keys():
 		erzeuger = smard.get_erzeuger(art)
 		previous_realisiert[art] = erzeuger.realisiert

@@ -9,10 +9,9 @@ All plots open in the browser with full interactivity:
 """
 
 import datetime
-from typing import Dict, List
 
-import pandas as pd
-import plotly.graph_objects as go
+from pandas import DataFrame
+from plotly.graph_objects import Figure, Scatter
 
 from core.prognose.ausbaupfad import Ausbaupfad
 from core.prognose.loader import Installation
@@ -31,10 +30,10 @@ from core.visualization.components import (
 
 def show_all_plots(
 	ausbaupfad: Ausbaupfad,
-	realisiert_datenreihen: Dict[ErzeugerArt, Datenreihe],
-	datenpunkte: List[Installation],
+	realisiert_datenreihen: dict[ErzeugerArt, Datenreihe],
+	datenpunkte: list[Installation],
 	smard: Smard,
-	co2_df: pd.DataFrame = None,
+	co2_df: DataFrame = None,
 	default_resolution: str = "1 Woche",
 	debug_art: ErzeugerArt = ErzeugerArt.Steinkohle,
 ) -> None:
@@ -119,13 +118,13 @@ def show_all_plots(
 
 
 def create_prognose_stackplot(
-	df: pd.DataFrame,
-	cols: List[ErzeugerArt],
+	df: DataFrame,
+	cols: list[ErzeugerArt],
 	smard_end,
-	dp_times: List,
+	dp_times: list,
 	resolution: str,
-) -> go.Figure:
-	fig = go.Figure()
+) -> Figure:
+	fig = Figure()
 	color_map = get_color_map(cols)
 
 	resolution_list = list(RESOLUTION_OPTIONS.keys())
@@ -139,7 +138,7 @@ def create_prognose_stackplot(
 		for col in cols:
 			col_name = str(col.value) if hasattr(col, "value") else str(col)
 			fig.add_trace(
-				go.Scatter(
+				Scatter(
 					x=df_resampled.index,
 					y=df_resampled[col],
 					name=col_name,
@@ -214,14 +213,14 @@ def create_prognose_stackplot(
 
 def create_installed_capacity_plot(
 	ausbaupfad: Ausbaupfad,
-	datenpunkte: List[Installation],
+	datenpunkte: list[Installation],
 	smard: Smard,
-	cols: List[ErzeugerArt],
+	cols: list[ErzeugerArt],
 	smard_end,
-	dp_times: List,
-) -> go.Figure:
+	dp_times: list,
+) -> Figure:
 	# unverändert (wie bei dir)
-	fig = go.Figure()
+	fig = Figure()
 	color_map = get_color_map(cols)
 
 	plot_start = smard_end - datetime.timedelta(days=365)
@@ -239,7 +238,7 @@ def create_installed_capacity_plot(
 
 		if not dps:
 			fig.add_trace(
-				go.Scatter(
+				Scatter(
 					x=[plot_start, plot_end],
 					y=[last_smard_val, last_smard_val],
 					name=str(art.value) if hasattr(art, "value") else str(art),
@@ -257,7 +256,7 @@ def create_installed_capacity_plot(
 				y_points.append(dp.wert)
 
 			fig.add_trace(
-				go.Scatter(
+				Scatter(
 					x=x_points,
 					y=y_points,
 					name=str(art.value) if hasattr(art, "value") else str(art),
@@ -281,13 +280,13 @@ def create_installed_capacity_plot(
 
 
 def create_realized_stackplot(
-	df: pd.DataFrame,
+	df: DataFrame,
 	ausbaupfad: Ausbaupfad,
 	smard_end,
-	dp_times: List,
+	dp_times: list,
 	resolution: str,
-	df_prognose: pd.DataFrame = None,
-) -> go.Figure:
+	df_prognose: DataFrame = None,
+) -> Figure:
 	"""
 	Realisierte Erzeugung (Stack-Modell Output) + Linien:
 	- Gesamterzeugung (realisiert)
@@ -295,7 +294,7 @@ def create_realized_stackplot(
 	- Überschuss NACH Abregelung = realisiert - Bedarf
 	- optional Überschuss VOR Abregelung = max_verfügbar - Bedarf (gestrichelt)
 	"""
-	fig = go.Figure()
+	fig = Figure()
 
 	cols = sorted(df.columns)
 	color_map = get_color_map(cols)
@@ -323,7 +322,7 @@ def create_realized_stackplot(
 		for col in cols:
 			col_name = str(col.value) if hasattr(col, "value") else str(col)
 			fig.add_trace(
-				go.Scatter(
+				Scatter(
 					x=df_resampled.index,
 					y=df_resampled[col],
 					name=col_name,
@@ -341,7 +340,7 @@ def create_realized_stackplot(
 		# Total realized
 		total_realized = df_resampled[cols].sum(axis=1)
 		fig.add_trace(
-			go.Scatter(
+			Scatter(
 				x=df_resampled.index,
 				y=total_realized,
 				name="Gesamterzeugung (realisiert)",
@@ -356,13 +355,13 @@ def create_realized_stackplot(
 
 		# Demand + Surplus lines
 		if has_demand:
-			verbrauch_resampled = resample_dataframe(
-				pd.DataFrame({"v": verbrauch_series}), res_name
-			)["v"]
+			verbrauch_resampled = resample_dataframe(DataFrame({"v": verbrauch_series}), res_name)[
+				"v"
+			]
 			verbrauch_plot = verbrauch_resampled.reindex(df_resampled.index, method="ffill")
 
 			fig.add_trace(
-				go.Scatter(
+				Scatter(
 					x=verbrauch_plot.index,
 					y=verbrauch_plot.values,
 					name="Verbrauch/Bedarf",
@@ -378,7 +377,7 @@ def create_realized_stackplot(
 			# Überschuss NACH Abregelung (realisiert - demand)
 			surplus_after = total_realized - verbrauch_plot
 			fig.add_trace(
-				go.Scatter(
+				Scatter(
 					x=surplus_after.index,
 					y=surplus_after.values,
 					name="Überschuss (nach Abregelung)",
@@ -402,7 +401,7 @@ def create_realized_stackplot(
 				surplus_before = max_available_aligned - verbrauch_plot
 
 				fig.add_trace(
-					go.Scatter(
+					Scatter(
 						x=surplus_before.index,
 						y=surplus_before.values,
 						name="Überschuss (vor Abregelung)",
@@ -486,16 +485,16 @@ def create_realized_stackplot(
 
 
 def create_surplus_plot(
-	df_prognose: pd.DataFrame,
+	df_prognose: DataFrame,
 	ausbaupfad: Ausbaupfad,
 	smard_end,
-	dp_times: List,
+	dp_times: list,
 	resolution: str,
-) -> go.Figure:
+) -> Figure:
 	"""
 	Überschuss/Unterdeckung VOR Abregelung: (max verfügbar - demand)
 	"""
-	fig = go.Figure()
+	fig = Figure()
 
 	verbrauch_series = None
 	if ausbaupfad.prognose_verbraucher:
@@ -518,9 +517,7 @@ def create_surplus_plot(
 
 	for res_idx, res_name in enumerate(resolution_list):
 		df_resampled = resample_dataframe(df_prognose, res_name)
-		verbrauch_resampled = resample_dataframe(pd.DataFrame({"v": verbrauch_series}), res_name)[
-			"v"
-		]
+		verbrauch_resampled = resample_dataframe(DataFrame({"v": verbrauch_series}), res_name)["v"]
 
 		common_index = df_resampled.index.intersection(verbrauch_resampled.index)
 		df_aligned = df_resampled.loc[common_index]
@@ -536,7 +533,7 @@ def create_surplus_plot(
 		show_in_legend = res_name == resolution
 
 		fig.add_trace(
-			go.Scatter(
+			Scatter(
 				x=surplus_pos.index,
 				y=surplus_pos.values,
 				name="Überschuss (vor Abregelung)",
@@ -552,7 +549,7 @@ def create_surplus_plot(
 		)
 
 		fig.add_trace(
-			go.Scatter(
+			Scatter(
 				x=surplus_neg.index,
 				y=surplus_neg.values,
 				name="Unterdeckung (vor Abregelung)",
@@ -568,7 +565,7 @@ def create_surplus_plot(
 		)
 
 		fig.add_trace(
-			go.Scatter(
+			Scatter(
 				x=surplus.index,
 				y=surplus.values,
 				name="Netto (vor Abregelung)",
@@ -645,18 +642,18 @@ def create_surplus_plot(
 
 
 def create_single_generator_plot(
-	df_prognose: pd.DataFrame,
-	df_realisiert: pd.DataFrame,
+	df_prognose: DataFrame,
+	df_realisiert: DataFrame,
 	art: ErzeugerArt,
 	ausbaupfad: Ausbaupfad,
 	smard_end,
-	dp_times: List,
+	dp_times: list,
 	resolution: str,
-) -> go.Figure:
+) -> Figure:
 	"""
 	Vergleich Prognose vs Realisiert für einen einzelnen Generator.
 	"""
-	fig = go.Figure()
+	fig = Figure()
 
 	if art not in df_prognose.columns or art not in df_realisiert.columns:
 		fig.add_annotation(
@@ -681,7 +678,7 @@ def create_single_generator_plot(
 
 		# Prognose (max verfügbar)
 		fig.add_trace(
-			go.Scatter(
+			Scatter(
 				x=df_prognose_resampled.index,
 				y=df_prognose_resampled[art],
 				name="Prognose (max. verfügbar)",
@@ -696,7 +693,7 @@ def create_single_generator_plot(
 
 		# Realisiert
 		fig.add_trace(
-			go.Scatter(
+			Scatter(
 				x=df_realisiert_resampled.index,
 				y=df_realisiert_resampled[art],
 				name="Realisiert",
@@ -714,7 +711,7 @@ def create_single_generator_plot(
 		curtailment[curtailment < 0] = 0
 
 		fig.add_trace(
-			go.Scatter(
+			Scatter(
 				x=curtailment.index,
 				y=curtailment.values,
 				name="Abregelung",
@@ -792,17 +789,17 @@ def create_single_generator_plot(
 
 
 def create_curtailment_plot(
-	df_prognose: pd.DataFrame,
-	df_realisiert: pd.DataFrame,
+	df_prognose: DataFrame,
+	df_realisiert: DataFrame,
 	ausbaupfad: Ausbaupfad,
 	smard_end,
-	dp_times: List,
+	dp_times: list,
 	resolution: str,
-) -> go.Figure:
+) -> Figure:
 	"""
 	Abregelung / Curtailment: Differenz zwischen max verfügbar und realisiert.
 	"""
-	fig = go.Figure()
+	fig = Figure()
 
 	cols = sorted(df_prognose.columns)
 	resolution_list = list(RESOLUTION_OPTIONS.keys())
@@ -823,7 +820,7 @@ def create_curtailment_plot(
 
 		# Max verfügbar Linie
 		fig.add_trace(
-			go.Scatter(
+			Scatter(
 				x=total_max_available.index,
 				y=total_max_available.values,
 				name="Max. verfügbar (Prognose)",
@@ -838,7 +835,7 @@ def create_curtailment_plot(
 
 		# Realisiert Linie
 		fig.add_trace(
-			go.Scatter(
+			Scatter(
 				x=total_realized.index,
 				y=total_realized.values,
 				name="Realisiert (Stack-Modell)",
@@ -853,7 +850,7 @@ def create_curtailment_plot(
 
 		# Abregelung Fläche
 		fig.add_trace(
-			go.Scatter(
+			Scatter(
 				x=total_curtailment.index,
 				y=total_curtailment.values,
 				name="Abregelung (Curtailment)",
@@ -870,7 +867,7 @@ def create_curtailment_plot(
 
 		# Abregelung Linie
 		fig.add_trace(
-			go.Scatter(
+			Scatter(
 				x=total_curtailment.index,
 				y=total_curtailment.values,
 				name="Abregelung (MW)",
@@ -945,17 +942,17 @@ def create_curtailment_plot(
 
 
 def create_comparison_stackplot(
-	df_prognose: pd.DataFrame,
-	df_realisiert: pd.DataFrame,
+	df_prognose: DataFrame,
+	df_realisiert: DataFrame,
 	ausbaupfad: Ausbaupfad,
 	smard_end,
-	dp_times: List,
+	dp_times: list,
 	resolution: str,
-) -> go.Figure:
+) -> Figure:
 	"""
 	Vergleich: Max. verfügbar vs. Realisiert vs. Verbrauch.
 	"""
-	fig = go.Figure()
+	fig = Figure()
 
 	cols = sorted(df_prognose.columns)
 	color_map = get_color_map(cols)
@@ -980,7 +977,7 @@ def create_comparison_stackplot(
 		for col in cols:
 			col_name = str(col.value) if hasattr(col, "value") else str(col)
 			fig.add_trace(
-				go.Scatter(
+				Scatter(
 					x=df_prognose_resampled.index,
 					y=df_prognose_resampled[col],
 					name=f"Max. verfügbar: {col_name}",
@@ -998,7 +995,7 @@ def create_comparison_stackplot(
 		# Gesamterzeugung realisiert (Linie)
 		total_realized = df_realisiert_resampled[cols].sum(axis=1)
 		fig.add_trace(
-			go.Scatter(
+			Scatter(
 				x=total_realized.index,
 				y=total_realized.values,
 				name="Gesamterzeugung (Realisiert)",
@@ -1013,15 +1010,15 @@ def create_comparison_stackplot(
 
 		# Verbrauch (Linie)
 		if verbrauch_series is not None:
-			verbrauch_resampled = resample_dataframe(
-				pd.DataFrame({"v": verbrauch_series}), res_name
-			)["v"]
+			verbrauch_resampled = resample_dataframe(DataFrame({"v": verbrauch_series}), res_name)[
+				"v"
+			]
 			verbrauch_plot = verbrauch_resampled.reindex(
 				df_prognose_resampled.index, method="ffill"
 			)
 
 			fig.add_trace(
-				go.Scatter(
+				Scatter(
 					x=verbrauch_plot.index,
 					y=verbrauch_plot.values,
 					name="Verbrauch/Bedarf",
@@ -1098,11 +1095,11 @@ def create_comparison_stackplot(
 
 
 def create_co2_plot(
-	co2_df: pd.DataFrame,
+	co2_df: DataFrame,
 	smard_end,
-	dp_times: List,
+	dp_times: list,
 	resolution: str,
-) -> go.Figure:
+) -> Figure:
 	"""
 	Create a CO2 emissions plot showing emissions per producer and total.
 
@@ -1118,7 +1115,7 @@ def create_co2_plot(
 	Returns:
 		Plotly Figure with CO2 emissions visualization
 	"""
-	fig = go.Figure()
+	fig = Figure()
 
 	# Get columns (ErzeugerArt types) - filter out those with zero emissions
 	all_cols = [col for col in co2_df.columns if isinstance(col, ErzeugerArt)]
@@ -1160,7 +1157,7 @@ def create_co2_plot(
 		for col in cols:
 			col_name = str(col.value) if hasattr(col, "value") else str(col)
 			fig.add_trace(
-				go.Scatter(
+				Scatter(
 					x=df_resampled.index,
 					y=df_resampled[col],
 					name=col_name,
@@ -1178,7 +1175,7 @@ def create_co2_plot(
 		# Total CO2 line
 		total_co2 = df_resampled[cols].sum(axis=1)
 		fig.add_trace(
-			go.Scatter(
+			Scatter(
 				x=total_co2.index,
 				y=total_co2.values,
 				name="Gesamt CO2",

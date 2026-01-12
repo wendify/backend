@@ -15,7 +15,8 @@ import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-import pandas as pd
+import pandas
+from pandas import DataFrame, DatetimeIndex, Series
 
 import config
 from core.prognose.types import Ereignis, Installation, Verbrauch
@@ -29,7 +30,7 @@ from core.setup.verbraucher import VerbraucherArt
 # =============================================================================
 
 
-def get_time_step_from_dataframe(df: pd.DataFrame) -> timedelta:
+def get_time_step_from_dataframe(df: DataFrame) -> timedelta:
 	"""
 	Ermittelt die Zeitauflösung (z.B. 15 Minuten) aus einem DataFrame.
 
@@ -53,9 +54,7 @@ def get_time_step_from_dataframe(df: pd.DataFrame) -> timedelta:
 	return timedelta(minutes=15)
 
 
-def create_time_grid(
-	start_time: datetime, end_time: datetime, time_step: timedelta
-) -> pd.DataFrame:
+def create_time_grid(start_time: datetime, end_time: datetime, time_step: timedelta) -> DataFrame:
 	"""
 	Erstellt ein durchgehendes Zeitraster von start_time bis end_time.
 
@@ -73,10 +72,10 @@ def create_time_grid(
 	"""
 	# Erzeuge alle "Datum von" Zeitpunkte
 	# end_time - time_step weil der letzte Eintrag bei end_time endet, nicht startet
-	all_start_times = pd.date_range(start=start_time, end=end_time - time_step, freq=time_step)
+	all_start_times = pandas.date_range(start=start_time, end=end_time - time_step, freq=time_step)
 
 	# Baue das DataFrame
-	grid = pd.DataFrame()
+	grid = DataFrame()
 	grid["Datum von"] = all_start_times
 	grid["Datum bis"] = all_start_times + time_step
 
@@ -89,11 +88,11 @@ def create_time_grid(
 
 
 def interpolate_target_values(
-	times: pd.Series,
+	times: Series,
 	baseline_time: datetime,
 	baseline_value: float,
 	target_points: list[Installation | Verbrauch],
-) -> pd.Series:
+) -> Series:
 	"""
 	Interpoliert Zielwerte linear über die Zeit.
 
@@ -122,11 +121,11 @@ def interpolate_target_values(
 		control_values.append(point.wert)
 
 	# Schritt 2: Erstelle eine Series aus den Kontrollpunkten
-	control_series = pd.Series(control_values, index=pd.to_datetime(control_times))
+	control_series = Series(control_values, index=pandas.to_datetime(control_times))
 	control_series = control_series.sort_index()
 
 	# Schritt 3: Erstelle einen Index der alle Zeitpunkte enthält
-	target_index = pd.DatetimeIndex(pd.to_datetime(times))
+	target_index = DatetimeIndex(pandas.to_datetime(times))
 	combined_index = target_index.union(control_series.index)
 
 	# Schritt 4: Interpoliere linear über die Zeit
@@ -152,12 +151,12 @@ def interpolate_target_values(
 
 
 def create_normalized_profile(
-	base_df: pd.DataFrame,
+	base_df: DataFrame,
 	column_name: str,
-	target_times: pd.Series,
+	target_times: Series,
 	normalization_value: float,
 	extrapolation_mode: str,
-) -> pd.Series:
+) -> Series:
 	"""
 	Erstellt ein normiertes Profil für die Prognose.
 
@@ -235,10 +234,10 @@ def create_normalized_profile(
 
 
 def _extrapolate_with_daily_profile(
-	result_series: pd.Series,
-	normalized_base: pd.Series,
-	future_times: pd.DatetimeIndex,
-) -> pd.Series:
+	result_series: Series,
+	normalized_base: Series,
+	future_times: DatetimeIndex,
+) -> Series:
 	"""
 	Füllt Zukunftswerte mit dem Tagesprofil.
 
@@ -264,10 +263,10 @@ def _extrapolate_with_daily_profile(
 
 
 def _extrapolate_with_yearly_profile(
-	result_series: pd.Series,
-	normalized_base: pd.Series,
-	future_times: pd.DatetimeIndex,
-) -> pd.Series:
+	result_series: Series,
+	normalized_base: Series,
+	future_times: DatetimeIndex,
+) -> Series:
 	"""
 	Füllt Zukunftswerte mit dem Jahresprofil.
 
@@ -315,12 +314,12 @@ def _extrapolate_with_yearly_profile(
 
 
 def create_baseline_series(
-	base_df: pd.DataFrame,
+	base_df: DataFrame,
 	column_name: str,
-	target_times: pd.Series,
-	normalized_profile: pd.Series,
+	target_times: Series,
+	normalized_profile: Series,
 	baseline_value: float,
-) -> pd.Series:
+) -> Series:
 	"""
 	Erstellt eine Zeitreihe der Ist-Werte mit Fortsetzung in die Zukunft.
 
@@ -368,11 +367,11 @@ def create_baseline_series(
 
 
 def calculate_prognosis(
-	baseline_series: pd.Series,
-	target_values_series: pd.Series,
-	normalized_profile: pd.Series,
+	baseline_series: Series,
+	target_values_series: Series,
+	normalized_profile: Series,
 	baseline_value: float,
-) -> pd.Series:
+) -> Series:
 	"""
 	Berechnet die finale Prognose.
 
@@ -458,9 +457,6 @@ def ergaenze_erzeuger_datenpunkte(
 
 	# Schritt 5: Ergänze Datenpunkte für fehlende Arten
 	if missing_types:
-		if smard is None:
-			raise ValueError(f"Fehlende ErzeugerArten: {missing_types} – kein smard übergeben")
-
 		for art in missing_types:
 			# Hole den aktuellen Wert aus SMARD
 			erzeuger = smard.get_erzeuger(art)
@@ -523,9 +519,6 @@ def create_prognose_erzeuger(
 	# Bei leerer Liste: nichts zu tun
 	if not datenpunkte:
 		return []
-
-	if smard is None:
-		raise ValueError("Smard darf nicht None sein")
 
 	# Schritt 1: Gruppiere Datenpunkte nach Art
 	grouped_points: defaultdict[ErzeugerArt, list[Installation]] = defaultdict(list)
@@ -609,7 +602,7 @@ def create_prognose_erzeuger(
 			prognosis_series = target_installed_series
 
 		# Erstelle das Ergebnis-DataFrame
-		result_df = pd.DataFrame()
+		result_df = DataFrame()
 		result_df["Datum von"] = time_grid["Datum von"]
 		result_df["Datum bis"] = time_grid["Datum bis"]
 		result_df[art] = prognosis_series.values
@@ -651,9 +644,6 @@ def create_prognose_verbraucher(
 	# Bei leerer Liste: nichts zu tun
 	if not datenpunkte:
 		return []
-
-	if smard is None:
-		raise ValueError("Smard darf nicht None sein")
 
 	# Schritt 1: Gruppiere Datenpunkte nach Art
 	grouped_points: defaultdict[VerbraucherArt, list[Verbrauch]] = defaultdict(list)
@@ -732,7 +722,7 @@ def create_prognose_verbraucher(
 		)
 
 		# Erstelle das Ergebnis-DataFrame
-		result_df = pd.DataFrame()
+		result_df = DataFrame()
 		result_df["Datum von"] = time_grid["Datum von"]
 		result_df["Datum bis"] = time_grid["Datum bis"]
 		result_df[art] = prognosis_series.values
