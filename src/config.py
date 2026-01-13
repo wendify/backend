@@ -43,7 +43,6 @@ LOG_FILE = LOGS_DIR.joinpath("backend.log")
 LOG_LEVEL = getenv("LOG_LEVEL")
 
 # Sonstiges
-ENORM_EXTRAPOLATION_MODE = getenv("ENORM_EXTRAPOLATION_MODE", "daily", "last", "yearly")
 ENVIRONMENT = getenv("ENVIRONMENT", "dev", "prod")
 PICKLE_FILE = DATA_DIR.joinpath("smard.pkl")
 

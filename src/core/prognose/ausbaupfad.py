@@ -18,7 +18,6 @@ from datetime import datetime, timedelta
 import pandas
 from pandas import DataFrame, DatetimeIndex, Series
 
-import config
 from core.prognose.types import Ereignis, Installation, Verbrauch
 from core.setup.datenreihe import Datenreihe
 from core.setup.erzeuger import ErzeugerArt
@@ -155,7 +154,6 @@ def create_normalized_profile(
 	column_name: str,
 	target_times: Series,
 	normalization_value: float,
-	extrapolation_mode: str,
 ) -> Series:
 	"""
 	Erstellt ein normiertes Profil für die Prognose.
@@ -167,17 +165,11 @@ def create_normalized_profile(
 
 	Das Profil zeigt die typische "Form" (z.B. Solaranlage mittags mehr als nachts).
 
-	Extrapolationsmodi für die Zukunft:
-	- "last": Letzter bekannter Wert wird fortgeschrieben
-	- "daily": Tagesprofil (Mittelwert je Uhrzeit über alle Tage)
-	- "yearly": Jahresprofil (Mittelwert je Tag-im-Jahr und Uhrzeit)
-
 	Args:
 		base_df: Historische Daten mit "Datum von" Spalte
 		column_name: Name der Werte-Spalte
 		target_times: Zeitpunkte für die wir das Profil brauchen
 		normalization_value: Wert durch den geteilt wird (z.B. installierte Leistung)
-		extrapolation_mode: "last", "daily" oder "yearly"
 
 	Returns:
 		pd.Series mit normierten Werten für jeden Zeitpunkt
@@ -212,67 +204,6 @@ def create_normalized_profile(
 	# Wenn keine Zukunftswerte nötig oder Modus "last": fertig
 	if len(future_times) == 0:
 		return result_series
-
-	if extrapolation_mode == "last":
-		# Bei "last" bleiben die ffill-Werte stehen
-		return result_series
-
-	# Schritt 6: Extrapoliere die Zukunftswerte
-	if extrapolation_mode == "daily":
-		# Berechne Durchschnittswerte für jede Uhrzeit
-		result_series = _extrapolate_with_daily_profile(
-			result_series, normalized_base, future_times
-		)
-
-	elif extrapolation_mode == "yearly":
-		# Berechne Durchschnittswerte für jeden Tag-im-Jahr + Uhrzeit
-		result_series = _extrapolate_with_yearly_profile(
-			result_series, normalized_base, future_times
-		)
-
-	return result_series
-
-
-def _extrapolate_with_daily_profile(
-	result_series: Series,
-	normalized_base: Series,
-	future_times: DatetimeIndex,
-) -> Series:
-	"""
-	Füllt Zukunftswerte mit dem Tagesprofil.
-
-	Das Tagesprofil ist der Mittelwert für jede Uhrzeit über alle Tage.
-	Beispiel: Mittags ist immer mehr Solar-Erzeugung als nachts.
-	"""
-
-	# Berechne Mittelwert für jede Uhrzeit
-	def get_time_of_day(timestamp):
-		return timestamp.time()
-
-	daily_profile = normalized_base.groupby(normalized_base.index.map(get_time_of_day)).mean()
-
-	# Setze die Werte für jeden Zukunfts-Zeitpunkt
-	future_values = []
-	for timestamp in future_times:
-		time_of_day = timestamp.time()
-		profile_value = daily_profile.get(time_of_day, 1.0)
-		future_values.append(float(profile_value))
-
-	result_series.loc[future_times] = future_values
-	return result_series
-
-
-def _extrapolate_with_yearly_profile(
-	result_series: Series,
-	normalized_base: Series,
-	future_times: DatetimeIndex,
-) -> Series:
-	"""
-	Füllt Zukunftswerte mit dem Jahresprofil.
-
-	Das Jahresprofil berücksichtigt sowohl den Tag-im-Jahr als auch die Uhrzeit.
-	Beispiel: Im Juli mittags mehr Solar als im Dezember mittags.
-	"""
 
 	# Schlüssel: (Tag-im-Jahr, Uhrzeit)
 	def get_day_and_time(timestamp):
@@ -557,9 +488,6 @@ def create_prognose_erzeuger(
 		time_step = get_time_step_from_dataframe(normalized_df)
 		time_grid = create_time_grid(start_time, horizon_end, time_step)
 
-		# Hole den Extrapolationsmodus aus der Config
-		extrapolation_mode = getattr(config, "ENORM_EXTRAPOLATION_MODE", "daily")
-
 		# Interpoliere die Zielwerte (installierte Leistung)
 		target_installed_series = interpolate_target_values(
 			times=time_grid["Datum von"],
@@ -577,7 +505,6 @@ def create_prognose_erzeuger(
 				column_name=art,
 				target_times=time_grid["Datum von"],
 				normalization_value=1.0,  # Bereits normiert
-				extrapolation_mode=extrapolation_mode,
 			)
 
 			# Erstelle die Basis-Zeitreihe (heutige Werte + Zukunft = Profil * Baseline)
@@ -683,9 +610,6 @@ def create_prognose_verbraucher(
 		time_step = get_time_step_from_dataframe(consumption_df)
 		time_grid = create_time_grid(start_time, horizon_end, time_step)
 
-		# Hole den Extrapolationsmodus aus der Config
-		extrapolation_mode = getattr(config, "ENORM_EXTRAPOLATION_MODE", "yearly")
-
 		# Erstelle das normierte Profil (VNorm)
 		# Für Verbraucher: Verbrauch / Mittelwert(Verbrauch)
 		normalized_profile = create_normalized_profile(
@@ -693,7 +617,6 @@ def create_prognose_verbraucher(
 			column_name=art,
 			target_times=time_grid["Datum von"],
 			normalization_value=baseline_consumption,
-			extrapolation_mode=extrapolation_mode,
 		)
 
 		# Erstelle die Basis-Zeitreihe (heutige Werte + Zukunft = Profil * Baseline)
