@@ -3,7 +3,6 @@ import time
 
 from core.output import plots
 from core.prognose import loader
-from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
 from core.simulation import co2, simulator, stack
 
@@ -98,11 +97,9 @@ class App:
 		plots.show_all(
 			ausbaupfad=ausbaupfad,
 			realisiert_datenreihen=realisiert_datenreihen,
-			datenpunkte=ausbaupfad.installiert,
 			smard=self.smard,
 			co2_df=co2_df,
 			default_resolution="1 Woche",
-			debug_art=ErzeugerArt.Steinkohle,
 		)
 
 		step_duration = time.time() - step_start
