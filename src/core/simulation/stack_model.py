@@ -1,22 +1,6 @@
-"""
-Stack-Modell Algorithmus zur Erzeugungszuordnung
-
-Logik:
-1. Mindestleistung (MUSS) für Dispatchables berechnen
-2. Erneuerbare IMMER voll nutzen (keine Abregelung)
-3. Überschuss = MUSS + Erneuerbare - Verbrauch
-   - Bei Überschuss: Dispatchables Richtung 0 regeln (mit Ramp-Limits)
-   - Bei Unterdeckung: Dispatchables hochfahren (mit Ramp-Limits)
-
-- Erneuerbare (regulation = 0) werden nie abgeregelt, Überschuss wird akzeptiert
-- Konventionelle werden mit Ramp-Limits (± 2*reg*max_avail) geregelt
-- Mindestleistung (MUSS) für EPS < reg < 1-EPS: prev_realized * (1 - reg)
-"""
-
 import time
 
 import numpy
-from numpy import float64
 from pandas import DataFrame, Timedelta
 
 from core.prognose.ausbaupfad import Ausbaupfad
@@ -36,29 +20,14 @@ PRIORITY_ORDER = [
 	ErzeugerArt.SonstigeKonventionelle,
 ]
 
-EPS = 1e-9
 
-
+# Berechnet die realisierte Erzeugung aus der maximal verfügbaren Erzeugung je Zeitschritt
 def calculate_realized_generation(
-	max_available_datenreihen: dict[ErzeugerArt, Datenreihe],
-	verbrauch_datenreihe: Datenreihe,
+	max_available_datenreihen: dict[ErzeugerArt, Datenreihe[ErzeugerArt]],
+	verbrauch_datenreihe: Datenreihe[VerbraucherArt],
 	smard: Smard,
-	previous_realisiert: dict[ErzeugerArt, Datenreihe] | None = None,
-) -> dict[ErzeugerArt, Datenreihe]:
-	"""
-	Berechnet die realisierte Erzeugung aus der maximal verfügbaren Erzeugung je Zeitschritt.
-
-	Dispatch-Logik:
-	1) Mindestleistung (MUSS) für regelbare Erzeuger
-	2) Erneuerbare IMMER voll nutzen (keine Abregelung)
-	3) Bei Unterdeckung: Regelbare hochfahren (mit Ramp-Limits)
-	4) Bei Überschuss: Regelbare runterregeln (mit Ramp-Limits)
-	"""
-
-	# ==========================================================================
-	# Vorbereitung: Zeitraster und Daten aufbereiten
-	# ==========================================================================
-
+	previous_realisiert: dict[ErzeugerArt, Datenreihe[ErzeugerArt]],
+) -> dict[ErzeugerArt, Datenreihe[ErzeugerArt]]:
 	# Verbrauchsdaten auf gemeinsamen Zeitindex bringen
 	verbrauch_nach_zeit = verbrauch_datenreihe.df.set_index("Datum von")
 	if verbrauch_nach_zeit.index.has_duplicates:
@@ -83,11 +52,8 @@ def calculate_realized_generation(
 	anzahl_erzeuger = len(alle_erzeuger)
 	erzeuger_zu_index = {art: i for i, art in enumerate(alle_erzeuger)}
 
-	# ==========================================================================
 	# Regulation-Werte holen und Erzeuger klassifizieren
-	# ==========================================================================
-
-	regulation_werte = numpy.zeros(anzahl_erzeuger, dtype=float64)
+	regulation_werte = numpy.zeros(anzahl_erzeuger, dtype=float)
 	for erzeuger_art in alle_erzeuger:
 		erzeuger = smard.get_erzeuger(erzeuger_art)
 		index = erzeuger_zu_index[erzeuger_art]
@@ -98,7 +64,7 @@ def calculate_realized_generation(
 	regelbare_indizes: list[int] = []
 
 	for index in range(anzahl_erzeuger):
-		if regulation_werte[index] <= EPS:
+		if regulation_werte[index] == 0:
 			erneuerbare_indizes.append(index)
 		else:
 			regelbare_indizes.append(index)
@@ -108,7 +74,7 @@ def calculate_realized_generation(
 	for erzeuger_art in PRIORITY_ORDER:
 		if erzeuger_art in erzeuger_zu_index:
 			index = erzeuger_zu_index[erzeuger_art]
-			if regulation_werte[index] > EPS:
+			if regulation_werte[index] != 0:
 				prioritaets_indizes.append(index)
 
 	prioritaets_set = set(prioritaets_indizes)
@@ -117,18 +83,15 @@ def calculate_realized_generation(
 	hochfahr_reihenfolge = prioritaets_indizes + restliche_regelbare
 	runterfahr_reihenfolge = list(reversed(hochfahr_reihenfolge))
 
-	# ==========================================================================
 	# Daten in numpy Arrays umwandeln (schneller für Berechnungen)
-	# ==========================================================================
-
-	max_verfuegbar_array = numpy.zeros((anzahl_zeitschritte, anzahl_erzeuger), dtype=float64)
+	max_verfuegbar_array = numpy.zeros((anzahl_zeitschritte, anzahl_erzeuger), dtype=float)
 	for index, erzeuger_art in enumerate(alle_erzeuger):
-		max_verfuegbar_array[:, index] = max_verfuegbar_df[erzeuger_art].values.astype(float64)
+		max_verfuegbar_array[:, index] = max_verfuegbar_df[erzeuger_art].values.astype(float)
 
-	verbrauch_array = verbrauch_werte.values.astype(float64)
+	verbrauch_array = verbrauch_werte.values.astype(float)
 
 	# Vorheriger realisierter Zustand (für Ramp-Limits)
-	vorherige_erzeugung = numpy.zeros(anzahl_erzeuger, dtype=float64)
+	vorherige_erzeugung = numpy.zeros(anzahl_erzeuger, dtype=float)
 	if previous_realisiert is not None:
 		for erzeuger_art, datenreihe in previous_realisiert.items():
 			if erzeuger_art in erzeuger_zu_index:
@@ -140,15 +103,12 @@ def calculate_realized_generation(
 				if len(erzeuger_zeitreihe) > 0:
 					vorherige_erzeugung[index] = float(erzeuger_zeitreihe.iloc[-1])
 
-	# ==========================================================================
 	# Hauptberechnung: Zeitschritt für Zeitschritt
-	# ==========================================================================
-
-	ergebnis_array = numpy.zeros((anzahl_zeitschritte, anzahl_erzeuger), dtype=float64)
+	ergebnis_array = numpy.zeros((anzahl_zeitschritte, anzahl_erzeuger), dtype=float)
 
 	# Arbeits-Arrays für jeden Zeitschritt
-	aktuelle_erzeugung = numpy.zeros(anzahl_erzeuger, dtype=float64)
-	mindest_erzeugung = numpy.zeros(anzahl_erzeuger, dtype=float64)
+	aktuelle_erzeugung = numpy.zeros(anzahl_erzeuger, dtype=float)
+	mindest_erzeugung = numpy.zeros(anzahl_erzeuger, dtype=float)
 
 	print(f"Berechne {anzahl_zeitschritte} Zeitschritte...")
 	start_zeit = time.time()
@@ -170,9 +130,7 @@ def calculate_realized_generation(
 		aktuelle_erzeugung.fill(0.0)
 		mindest_erzeugung.fill(0.0)
 
-		# ---------------------------------------------------------------------
 		# Schritt 1: Mindestleistung (MUSS) für regelbare Erzeuger berechnen
-		# ---------------------------------------------------------------------
 		for index in regelbare_indizes:
 			regulation = regulation_werte[index]
 			vorherige_leistung = vorherige_erzeugung[index]
@@ -182,7 +140,7 @@ def calculate_realized_generation(
 				max_verfuegbar = 0.0
 
 			# Mindestleistung nur für teilweise regelbare Erzeuger (0 < reg < 1)
-			if (regulation > EPS) and (regulation < 1.0 - EPS):
+			if regulation != 0 and regulation != 1:
 				mindest_leistung = vorherige_leistung * (1.0 - regulation)
 			else:
 				mindest_leistung = 0.0
@@ -196,9 +154,7 @@ def calculate_realized_generation(
 			mindest_erzeugung[index] = mindest_leistung
 			aktuelle_erzeugung[index] = mindest_leistung
 
-		# ---------------------------------------------------------------------
 		# Schritt 2: Erneuerbare IMMER voll einsetzen (keine Abregelung)
-		# ---------------------------------------------------------------------
 		if len(erneuerbare_indizes) > 0:
 			erneuerbare_verfuegbar = max_verfuegbar_jetzt[erneuerbare_indizes].copy()
 			erneuerbare_verfuegbar[erneuerbare_verfuegbar < 0.0] = 0.0
@@ -212,9 +168,7 @@ def calculate_realized_generation(
 		else:
 			anzahl_unterdeckungs_schritte += 1
 
-		# ---------------------------------------------------------------------
 		# Schritt 3: Bei Unterdeckung - Regelbare hochfahren (mit Ramp-Limits)
-		# ---------------------------------------------------------------------
 		if fehlende_leistung > 0.0:
 			for index in hochfahr_reihenfolge:
 				if fehlende_leistung <= 0.0:
@@ -263,10 +217,7 @@ def calculate_realized_generation(
 				aktuelle_erzeugung[index] += zufuegen
 				fehlende_leistung -= zufuegen
 
-		# ---------------------------------------------------------------------
 		# Schritt 4: Bei Überschuss - Regelbare runterregeln (mit Ramp-Limits)
-		#            Erneuerbare werden NICHT abgeregelt!
-		# ---------------------------------------------------------------------
 		if fehlende_leistung < -1e-9:
 			ueberschuss = -fehlende_leistung
 
@@ -303,9 +254,7 @@ def calculate_realized_generation(
 			# Überschuss bleibt bestehen - KEINE Abregelung der Erneuerbaren
 			fehlende_leistung = -ueberschuss
 
-		# ---------------------------------------------------------------------
 		# Ergebnis speichern und für nächsten Zeitschritt merken
-		# ---------------------------------------------------------------------
 		aktuelle_erzeugung[aktuelle_erzeugung < 0.0] = 0.0
 		ergebnis_array[zeitschritt_index, :] = aktuelle_erzeugung
 		vorherige_erzeugung[:] = aktuelle_erzeugung
@@ -334,11 +283,8 @@ def calculate_realized_generation(
 		f"({100 * anzahl_unterdeckungs_schritte / anzahl_zeitschritte:.1f}%)"
 	)
 
-	# ==========================================================================
 	# Ergebnisse zurück in Datenreihen umwandeln
-	# ==========================================================================
-
-	ergebnis_dict: dict[ErzeugerArt, Datenreihe] = {}
+	ergebnis_dict: dict[ErzeugerArt, Datenreihe[ErzeugerArt]] = {}
 	datum_von_array = zeitindex.to_numpy()
 	datum_bis_array = (zeitindex + zeitschritt_dauer).to_numpy()
 
@@ -352,17 +298,14 @@ def calculate_realized_generation(
 	return ergebnis_dict
 
 
+# Wendet den Stack-Modell-Algorithmus auf einen Ausbaupfad an
 def apply_stack_model_to_ausbaupfad(
 	ausbaupfad: Ausbaupfad,
 	smard: Smard,
 	verbrauch_art: VerbraucherArt = VerbraucherArt.Netzlast,
-) -> dict[ErzeugerArt, Datenreihe]:
-	"""
-	Wendet den Stack-Modell-Algorithmus auf einen Ausbaupfad an.
-	"""
-
+) -> dict[ErzeugerArt, Datenreihe[ErzeugerArt]]:
 	# Maximal verfügbare Erzeugung aus Prognose-Zeitreihen extrahieren
-	max_available_datenreihen: dict[ErzeugerArt, Datenreihe] = {}
+	max_available_datenreihen: dict[ErzeugerArt, Datenreihe[ErzeugerArt]] = {}
 	for datenreihe in ausbaupfad.prognose_erzeuger:
 		art = datenreihe.art
 		df = datenreihe.df[["Datum von", "Datum bis", art]].copy()
@@ -382,7 +325,7 @@ def apply_stack_model_to_ausbaupfad(
 		verbrauch_datenreihe = smard.get_verbraucher(verbrauch_art).verbraucht
 
 	# Startzustand aus SMARD (prev_realized)
-	previous_realisiert: dict[ErzeugerArt, Datenreihe] = {}
+	previous_realisiert: dict[ErzeugerArt, Datenreihe[ErzeugerArt]] = {}
 	for art in max_available_datenreihen.keys():
 		erzeuger = smard.get_erzeuger(art)
 		previous_realisiert[art] = erzeuger.realisiert

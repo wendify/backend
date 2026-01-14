@@ -1,16 +1,3 @@
-"""
-Ausbaupfad - Prognose für Erzeuger und Verbraucher
-
-Dieses Modul berechnet Prognosen für die Stromerzeugung und den Stromverbrauch
-basierend auf Datenpunkten, die Zielwerte für die Zukunft definieren.
-
-Die Grundidee:
-- Wir haben historische Daten (z.B. wie viel Strom wurde mit Wind erzeugt)
-- Wir haben Ziel-Datenpunkte (z.B. "Im Jahr 2030 sollen 100 GW Wind installiert sein")
-- Wir interpolieren linear zwischen heute und den Zielwerten
-- Wir berechnen die Prognose: Normiertes Profil * Installierte Leistung
-"""
-
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -24,24 +11,9 @@ from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
 from core.setup.verbraucher import VerbraucherArt
 
-# =============================================================================
-# HILFSFUNKTIONEN FÜR ZEITRASTER
-# =============================================================================
 
-
+# Ermittelt die Zeitauflösung (z.B. 15 Minuten) aus einem DataFrame
 def get_time_step_from_dataframe(df: DataFrame) -> timedelta:
-	"""
-	Ermittelt die Zeitauflösung (z.B. 15 Minuten) aus einem DataFrame.
-
-	Warum: Wir wollen die Prognose auf dem gleichen Zeitraster wie die
-	historischen SMARD-Daten berechnen.
-
-	Args:
-		df: DataFrame mit "Datum von" Spalte
-
-	Returns:
-		timedelta: Der Zeitabstand zwischen zwei Zeilen (z.B. 15 Minuten)
-	"""
 	# Brauchen mindestens 2 Zeilen um den Abstand zu berechnen
 	if len(df) >= 2:
 		first_time = df["Datum von"].iloc[0]
@@ -53,22 +25,8 @@ def get_time_step_from_dataframe(df: DataFrame) -> timedelta:
 	return timedelta(minutes=15)
 
 
+# Erstellt ein durchgehendes Zeitraster von start_time bis end_time
 def create_time_grid(start_time: datetime, end_time: datetime, time_step: timedelta) -> DataFrame:
-	"""
-	Erstellt ein durchgehendes Zeitraster von start_time bis end_time.
-
-	Beispiel: Bei 15-Minuten-Schritten von 00:00 bis 01:00:
-	- Datum von: 00:00, 00:15, 00:30, 00:45
-	- Datum bis: 00:15, 00:30, 00:45, 01:00
-
-	Args:
-		start_time: Startzeit des Rasters
-		end_time: Endzeit des Rasters
-		time_step: Zeitschritt (z.B. 15 Minuten)
-
-	Returns:
-		DataFrame mit "Datum von" und "Datum bis" Spalten
-	"""
 	# Erzeuge alle "Datum von" Zeitpunkte
 	# end_time - time_step weil der letzte Eintrag bei end_time endet, nicht startet
 	all_start_times = pandas.date_range(start=start_time, end=end_time - time_step, freq=time_step)
@@ -81,36 +39,13 @@ def create_time_grid(start_time: datetime, end_time: datetime, time_step: timede
 	return grid
 
 
-# =============================================================================
-# INTERPOLATION FÜR ZIELPFADE
-# =============================================================================
-
-
+# Interpoliert Zielwerte linear über die Zeit
 def interpolate_target_values(
 	times: Series,
 	baseline_time: datetime,
 	baseline_value: float,
 	target_points: list[Installation | Verbrauch],
 ) -> Series:
-	"""
-	Interpoliert Zielwerte linear über die Zeit.
-
-	Beispiel:
-	- Baseline (heute): 50 GW installiert am 01.01.2024
-	- Ziel: 100 GW am 01.01.2030
-	- Ergebnis: Lineare Steigerung von 50 auf 100 GW
-
-	Diese Funktion funktioniert für Erzeuger (installiert) und Verbraucher (verbraucht).
-
-	Args:
-		times: Zeitpunkte für die wir Werte berechnen wollen
-		baseline_time: Zeitpunkt des Ausgangswerts
-		baseline_value: Ausgangswert (z.B. heute installierte Leistung)
-		target_points: Liste von Datenpunkten mit Zielwerten
-
-	Returns:
-		pd.Series mit interpolierten Werten für jeden Zeitpunkt
-	"""
 	# Schritt 1: Sammle alle Kontrollpunkte (Baseline + Ziele)
 	control_times = [baseline_time]
 	control_values = [float(baseline_value)]
@@ -137,43 +72,18 @@ def interpolate_target_values(
 	series_on_target = series_interpolated.reindex(target_index)
 
 	# Schritt 5: Fülle Lücken am Rand
-	# ffill = Forward Fill (letzter bekannter Wert nach vorne)
-	# bfill = Backward Fill (nächster bekannter Wert nach hinten)
 	series_filled = series_on_target.ffill().bfill()
 
 	return series_filled
 
 
-# =============================================================================
-# NORMIERTES PROFIL (ENorm / VNorm)
-# =============================================================================
-
-
+# Erstellt ein normiertes Profil für die Prognose
 def create_normalized_profile(
 	base_df: DataFrame,
 	column_name: str,
 	target_times: Series,
 	normalization_value: float,
 ) -> Series:
-	"""
-	Erstellt ein normiertes Profil für die Prognose.
-
-	Was ist ein normiertes Profil?
-	- Normierter Wert = Ist-Wert / Normierungswert
-	- Bei Erzeugern: Erzeugung / Installierte Leistung
-	- Bei Verbrauchern: Verbrauch / Mittelwert(Verbrauch)
-
-	Das Profil zeigt die typische "Form" (z.B. Solaranlage mittags mehr als nachts).
-
-	Args:
-		base_df: Historische Daten mit "Datum von" Spalte
-		column_name: Name der Werte-Spalte
-		target_times: Zeitpunkte für die wir das Profil brauchen
-		normalization_value: Wert durch den geteilt wird (z.B. installierte Leistung)
-
-	Returns:
-		pd.Series mit normierten Werten für jeden Zeitpunkt
-	"""
 	# Schritt 1: Hole die Werte und normiere sie
 	base_series = base_df.set_index("Datum von")[column_name]
 
@@ -239,11 +149,7 @@ def create_normalized_profile(
 	return result_series
 
 
-# =============================================================================
-# HEUTIGE WERTE MIT ZUKUNFTS-FORTSETZUNG
-# =============================================================================
-
-
+# Erstellt eine Zeitreihe der Ist-Werte mit Fortsetzung in die Zukunft
 def create_baseline_series(
 	base_df: DataFrame,
 	column_name: str,
@@ -251,22 +157,6 @@ def create_baseline_series(
 	normalized_profile: Series,
 	baseline_value: float,
 ) -> Series:
-	"""
-	Erstellt eine Zeitreihe der Ist-Werte mit Fortsetzung in die Zukunft.
-
-	Für die Vergangenheit: Echte historische Werte
-	Für die Zukunft: Normiertes Profil * Baseline-Wert
-
-	Args:
-		base_df: Historische Daten
-		column_name: Name der Werte-Spalte
-		target_times: Alle Zeitpunkte für die wir Werte brauchen
-		normalized_profile: Das normierte Profil für die Zukunft
-		baseline_value: Der Ausgangswert (z.B. installierte Leistung)
-
-	Returns:
-		pd.Series mit Werten für alle Zeitpunkte
-	"""
 	# Schritt 1: Hole die historischen Werte
 	historical_series = base_df.set_index("Datum von")[column_name]
 
@@ -292,44 +182,13 @@ def create_baseline_series(
 	return result_series
 
 
-# =============================================================================
-# PROGNOSE-BERECHNUNG
-# =============================================================================
-
-
+# Berechnet die finale Prognose
 def calculate_prognosis(
 	baseline_series: Series,
 	target_values_series: Series,
 	normalized_profile: Series,
 	baseline_value: float,
 ) -> Series:
-	"""
-	Berechnet die finale Prognose.
-
-	Die Formel:
-	Prognose = Heute + (Ziel - Baseline) * Profil
-
-	Wobei:
-	- Heute = Die aktuellen/historischen Werte
-	- Ziel = Interpolierter Zielwert (z.B. installierte Leistung)
-	- Baseline = Der Ausgangswert von heute
-	- Profil = Das normierte Profil
-
-	Beispiel für Solar:
-	- Heute: 50 GW installiert, erzeugt 20 GW
-	- Ziel 2030: 100 GW installiert
-	- Delta: 50 GW mehr
-	- Prognose mittags: 20 GW + 50 GW * 0.8 (Profil) = 60 GW
-
-	Args:
-		baseline_series: Heutige/historische Werte
-		target_values_series: Interpolierte Zielwerte
-		normalized_profile: Normiertes Profil
-		baseline_value: Ausgangswert von heute
-
-	Returns:
-		pd.Series mit der Prognose
-	"""
 	# Schritt 1: Berechne das Delta (Unterschied zum Ausgangswert)
 	delta_series = target_values_series - baseline_value
 
@@ -342,29 +201,11 @@ def calculate_prognosis(
 	return prognosis
 
 
-# =============================================================================
-# ERZEUGER: ERGÄNZE FEHLENDE ARTEN
-# =============================================================================
-
-
+# Ergänzt Datenpunkte für Erzeuger-Arten die keine Datenpunkte haben
 def ergaenze_erzeuger_datenpunkte(
 	datenpunkte: list[Installation],
 	smard: Smard,
 ) -> list[Installation]:
-	"""
-	Ergänzt Datenpunkte für Erzeuger-Arten die keine Datenpunkte haben.
-
-	Wenn z.B. nur Solar-Datenpunkte übergeben wurden, werden für alle
-	anderen Arten (Wind, Kohle, etc.) automatisch Datenpunkte erstellt,
-	die den aktuellen Ist-Stand fortschreiben.
-
-	Args:
-		datenpunkte: Vorhandene Datenpunkte
-		smard: SMARD-Datenobjekt
-
-	Returns:
-		Ergänzte Liste von Datenpunkten
-	"""
 	# Bei leerer Liste: nichts zu tun
 	if not datenpunkte:
 		return datenpunkte
@@ -402,7 +243,6 @@ def ergaenze_erzeuger_datenpunkte(
 			datenpunkte.append(new_punkt)
 
 	# Schritt 6: Ergänze auch vorhandene Arten bis zum spätesten Datum
-	# (falls ein Erzeuger früher endet als andere)
 	for art in existing_types:
 		# Finde alle Datenpunkte dieser Art
 		punkte_dieser_art = [p for p in datenpunkte if p.art == art]
@@ -421,32 +261,11 @@ def ergaenze_erzeuger_datenpunkte(
 	return datenpunkte
 
 
-# =============================================================================
-# HAUPTFUNKTION: ERZEUGER-PROGNOSE
-# =============================================================================
-
-
+# Erzeugt Prognose-Datenreihen für alle Erzeuger-Arten
 def create_prognose_erzeuger(
 	datenpunkte: list[Installation],
 	smard: Smard,
 ) -> list[Datenreihe[ErzeugerArt]]:
-	"""
-	Erzeugt Prognose-Datenreihen für alle Erzeuger-Arten.
-
-	Der Rechenweg:
-	1. Datenpunkte nach Erzeuger-Art gruppieren
-	2. Für jede Art: Zielwerte linear interpolieren
-	3. Delta zur heutigen installierten Leistung berechnen
-	4. Delta mit normiertem Profil multiplizieren
-	5. Mit heutiger Erzeugung addieren = Prognose
-
-	Args:
-		datenpunkte: Liste von ErzeugerDatenpunkt
-		smard: SMARD-Datenobjekt
-
-	Returns:
-		Liste von Datenreihe-Objekten mit der Prognose je Art
-	"""
 	# Bei leerer Liste: nichts zu tun
 	if not datenpunkte:
 		return []
@@ -540,34 +359,11 @@ def create_prognose_erzeuger(
 	return result
 
 
-# =============================================================================
-# HAUPTFUNKTION: VERBRAUCHER-PROGNOSE
-# =============================================================================
-
-
+# Erzeugt Prognose-Datenreihen für Verbraucher-Arten
 def create_prognose_verbraucher(
 	datenpunkte: list[Verbrauch],
 	smard: Smard,
 ) -> list[Datenreihe[VerbraucherArt]]:
-	"""
-	Erzeugt Prognose-Datenreihen für Verbraucher-Arten.
-
-	Der Rechenweg ist analog zu Erzeugern:
-	1. Datenpunkte nach Verbraucher-Art gruppieren
-	2. Für jede Art: Zielwerte linear interpolieren
-	3. Delta zum heutigen mittleren Verbrauch berechnen
-	4. Delta mit normiertem Profil multiplizieren
-	5. Mit heutigem Verbrauch addieren = Prognose
-
-	WICHTIG: Nur Arten mit expliziten Datenpunkten werden verarbeitet!
-
-	Args:
-		datenpunkte: Liste von VerbraucherDatenpunkt
-		smard: SMARD-Datenobjekt
-
-	Returns:
-		Liste von Datenreihe-Objekten mit der Prognose je Art
-	"""
 	# Bei leerer Liste: nichts zu tun
 	if not datenpunkte:
 		return []
@@ -654,11 +450,6 @@ def create_prognose_verbraucher(
 		result.append(Datenreihe(art, result_df))
 
 	return result
-
-
-# =============================================================================
-# HAUPTKLASSE: AUSBAUPFAD
-# =============================================================================
 
 
 # Ein aus den CSV-Dateien gelesener Ausbaupfad
