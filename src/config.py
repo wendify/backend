@@ -39,7 +39,7 @@ REALISIERT_IDS = 1223, 1224, 1225, 1226, 1227, 1228, 4066, 4067, 4068, 4069, 407
 VERBRAUCHT_IDS = 410, 4359, 4387, 5140
 
 # Logging
-LOG_FILE = LOGS_DIR.joinpath("backend.log")
+LOG_FILE = LOGS_DIR.joinpath("wendify.log")
 LOG_LEVEL = getenv("LOG_LEVEL")
 
 # Sonstiges

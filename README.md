@@ -1,27 +1,17 @@
-# backend
+# wendify
 
-The backend for Wendify.
+Eine Anwendung zur Energiewendesimulation.
 
-## Usage
+## Einrichtung
 
-1. Create and activate a [virtual environment][venv] to install everything locally
+1. [Virtuelle Umgebung][venv] einrichten, um Pakete lokal zu installieren
+2. Abhängigkeiten installieren: `pip install -e .`
+3. Umgebungsvariablen kopieren und einrichten: `cp .env.example .env`
 
-2. Install the dependencies:
+## Benutzung
 
-```
-pip install -e .
-```
-
-3. Copy and configure the environment variables:
-
-```
-cp .env.example .env
-```
-
-4. Run the main script to start the backend:
-
-```
-main
-```
+1. Ausbaupfade erstellen im Ordner `/ausbau`
+2. Anwendung starten: `wendify`
+3. Gewünschten Ausbaupfad auswählen, falls mehrere vorhanden sind
 
 [venv]: https://packaging.python.org/guides/installing-using-pip-and-virtual-environments

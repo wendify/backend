@@ -1,10 +1,10 @@
 [project]
-name = "backend"
+name = "wendify"
 version = "0.1.0"
 dependencies = ["coloredlogs", "dotenv", "pandas", "plotly", "requests", "ruff"]
 
 [project.scripts]
-main = "main:main"
+wendify = "main:main"
 
 [tool.ruff]
 line-length = 100
