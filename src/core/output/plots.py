@@ -13,12 +13,7 @@ import datetime
 from pandas import DataFrame
 from plotly.graph_objects import Figure, Scatter
 
-from core.prognose.ausbaupfad import Ausbaupfad
-from core.prognose.loader import Installation
-from core.setup.datenreihe import Datenreihe
-from core.setup.erzeuger import ErzeugerArt
-from core.setup.smard import Smard
-from core.visualization.components import (
+from core.output.components import (
 	COMMON_LAYOUT,
 	RESOLUTION_OPTIONS,
 	add_vertical_markers,
@@ -26,9 +21,14 @@ from core.visualization.components import (
 	prepare_plot_dataframes,
 	resample_dataframe,
 )
+from core.prognose.ausbaupfad import Ausbaupfad
+from core.prognose.loader import Installation
+from core.setup.datenreihe import Datenreihe
+from core.setup.erzeuger import ErzeugerArt
+from core.setup.smard import Smard
 
 
-def show_all_plots(
+def show_all(
 	ausbaupfad: Ausbaupfad,
 	realisiert_datenreihen: dict[ErzeugerArt, Datenreihe],
 	datenpunkte: list[Installation],

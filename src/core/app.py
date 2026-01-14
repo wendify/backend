@@ -1,11 +1,11 @@
 import logging
 import time
 
+from core.output import plots
 from core.prognose import loader
 from core.setup.erzeuger import ErzeugerArt
 from core.setup.smard import Smard
-from core.simulation import co2_calc, simulator, stack_model
-from core.visualization import plots
+from core.simulation import co2, simulator, stack
 
 
 # Die Hauptklasse dieses Projekts
@@ -74,7 +74,7 @@ class App:
 		print("\n=== Schritt 4: Stack-Modell anwenden ===")
 		step_start = time.time()
 
-		realisiert_datenreihen = stack_model.apply_stack_model_to_ausbaupfad(ausbaupfad, self.smard)
+		realisiert_datenreihen = stack.apply_stack_model(ausbaupfad, self.smard)
 		step_duration = time.time() - step_start
 
 		print(f"Stack-Modell angewendet in {step_duration:.2f} Sekunden")
@@ -84,7 +84,7 @@ class App:
 		print("\n=== Schritt 5: CO2-Berechnung ===")
 		step_start = time.time()
 
-		co2_df = co2_calc.calculate_co2_emissions(realisiert_datenreihen)
+		co2_df = co2.calculate_emissions(realisiert_datenreihen)
 		step_duration = time.time() - step_start
 
 		print(f"CO2-Emissionen berechnet in {step_duration:.2f} Sekunden")
@@ -95,7 +95,7 @@ class App:
 		step_start = time.time()
 
 		# TODO: Plots komplett erneuern
-		plots.show_all_plots(
+		plots.show_all(
 			ausbaupfad=ausbaupfad,
 			realisiert_datenreihen=realisiert_datenreihen,
 			datenpunkte=ausbaupfad.installiert,

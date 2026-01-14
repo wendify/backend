@@ -22,7 +22,7 @@ PRIORITY_ORDER = [
 
 
 # Berechnet die realisierte Erzeugung aus der maximal verfügbaren Erzeugung je Zeitschritt
-def calculate_realized_generation(
+def calculate_realized(
 	max_available_datenreihen: dict[ErzeugerArt, Datenreihe[ErzeugerArt]],
 	verbrauch_datenreihe: Datenreihe[VerbraucherArt],
 	smard: Smard,
@@ -299,7 +299,7 @@ def calculate_realized_generation(
 
 
 # Wendet den Stack-Modell-Algorithmus auf einen Ausbaupfad an
-def apply_stack_model_to_ausbaupfad(
+def apply_stack_model(
 	ausbaupfad: Ausbaupfad,
 	smard: Smard,
 	verbrauch_art: VerbraucherArt = VerbraucherArt.Netzlast,
@@ -330,7 +330,7 @@ def apply_stack_model_to_ausbaupfad(
 		erzeuger = smard.get_erzeuger(art)
 		previous_realisiert[art] = erzeuger.realisiert
 
-	return calculate_realized_generation(
+	return calculate_realized(
 		max_available_datenreihen=max_available_datenreihen,
 		verbrauch_datenreihe=verbrauch_datenreihe,
 		smard=smard,

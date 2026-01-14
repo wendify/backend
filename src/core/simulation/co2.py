@@ -5,7 +5,7 @@ from core.setup.erzeuger import ErzeugerArt
 
 
 # Berechnet CO2-Emissionen für jeden Erzeuger basierend auf der realisierten Erzeugung
-def calculate_co2_emissions(
+def calculate_emissions(
 	realisiert: dict[ErzeugerArt, Datenreihe[ErzeugerArt]],
 ) -> DataFrame:
 	# Wenn keine Daten vorhanden sind, leeres DataFrame zurückgeben
