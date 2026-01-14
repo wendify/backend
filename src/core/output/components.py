@@ -197,8 +197,7 @@ def merge_datenreihen_to_dataframe(datenreihen: list) -> DataFrame:
 		series = dr.df.set_index("Datum von")[dr.art]
 		data_series_list.append(series)
 
-	merged_df = pandas.concat(data_series_list, axis=1).fillna(0)
-	return merged_df
+	return pandas.concat(data_series_list, axis=1).fillna(0)
 
 
 def prepare_plot_dataframes(

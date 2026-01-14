@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 import pandas
 from pandas import DataFrame, DatetimeIndex, Series
@@ -18,8 +18,8 @@ def get_time_step_from_dataframe(df: DataFrame) -> timedelta:
 	if len(df) >= 2:
 		first_time = df["Datum von"].iloc[0]
 		second_time = df["Datum von"].iloc[1]
-		time_step = second_time - first_time
-		return time_step
+
+		return second_time - first_time
 
 	# Fallback: 15 Minuten wenn nicht genug Daten
 	return timedelta(minutes=15)
@@ -72,9 +72,7 @@ def interpolate_target_values(
 	series_on_target = series_interpolated.reindex(target_index)
 
 	# Schritt 5: Fülle Lücken am Rand
-	series_filled = series_on_target.ffill().bfill()
-
-	return series_filled
+	return series_on_target.ffill().bfill()
 
 
 # Erstellt ein normiertes Profil für die Prognose
@@ -116,7 +114,7 @@ def create_normalized_profile(
 		return result_series
 
 	# Schlüssel: (Tag-im-Jahr, Uhrzeit)
-	def get_day_and_time(timestamp):
+	def get_day_and_time(timestamp: datetime) -> tuple[int, time]:
 		day_of_year = timestamp.timetuple().tm_yday
 		time_of_day = timestamp.time()
 		return (day_of_year, time_of_day)
@@ -125,10 +123,7 @@ def create_normalized_profile(
 	yearly_profile = normalized_base.groupby(normalized_base.index.map(get_day_and_time)).mean()
 
 	# Fallback: Nur Tagesprofil wenn keine Jahres-Daten vorhanden
-	def get_time_of_day(timestamp):
-		return timestamp.time()
-
-	daily_profile = normalized_base.groupby(normalized_base.index.map(get_time_of_day)).mean()
+	daily_profile = normalized_base.groupby(normalized_base.index.map(datetime.time)).mean()
 
 	# Setze die Werte für jeden Zukunfts-Zeitpunkt
 	future_values = []
@@ -196,9 +191,7 @@ def calculate_prognosis(
 	additional_values = delta_series * normalized_profile
 
 	# Schritt 3: Addiere zur Basis
-	prognosis = baseline_series + additional_values
-
-	return prognosis
+	return baseline_series + additional_values
 
 
 # Ergänzt Datenpunkte für Erzeuger-Arten die keine Datenpunkte haben
