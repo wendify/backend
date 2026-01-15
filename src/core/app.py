@@ -73,17 +73,17 @@ class App:
 		print("\n=== Schritt 4: Stack-Modell anwenden ===")
 		step_start = time.time()
 
-		realisiert_datenreihen = stack.apply_stack_model(ausbaupfad, self.smard)
+		realisiert = stack.apply_stack_model(ausbaupfad, self.smard)
 		step_duration = time.time() - step_start
 
 		print(f"Stack-Modell angewendet in {step_duration:.2f} Sekunden")
-		print(f"Erzeugte Datenreihen: {len(realisiert_datenreihen)}")
+		print(f"Erzeugte Datenreihen: {len(realisiert)}")
 
 		# Schritt 5
 		print("\n=== Schritt 5: CO2-Berechnung ===")
 		step_start = time.time()
 
-		co2_df = co2.calculate_emissions(realisiert_datenreihen)
+		co2_df = co2.calculate_emissions(realisiert)
 		step_duration = time.time() - step_start
 
 		print(f"CO2-Emissionen berechnet in {step_duration:.2f} Sekunden")
@@ -93,14 +93,8 @@ class App:
 		print("\n=== Schritt 6: Visualisierung im Browser ===")
 		step_start = time.time()
 
-		# TODO: Plots komplett erneuern
-		plots.show_all(
-			ausbaupfad=ausbaupfad,
-			realisiert_datenreihen=realisiert_datenreihen,
-			smard=self.smard,
-			co2_df=co2_df,
-			default_resolution="1 Woche",
-		)
+		# Alle Plots im Browser anzeigen
+		plots.show_all(ausbaupfad, realisiert, co2_df, self.smard)
 
 		step_duration = time.time() - step_start
 		total_duration = time.time() - total_start
