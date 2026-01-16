@@ -13,6 +13,7 @@ from core.setup.verbraucher import VerbraucherArt
 def build_plot(
 	ausbaupfad: Ausbaupfad,
 	realisiert_datenreihen: dict[ErzeugerArt, Datenreihe[ErzeugerArt]],
+	ueberschuss_datenreihe: Datenreihe[str],
 	smard: Smard,
 	default_resolution: str = "1 Woche",
 ) -> Figure:
@@ -99,6 +100,27 @@ def build_plot(
 				)
 			)
 
+		# Überschusslinie hinzufügen, falls vorhanden
+		if ueberschuss_datenreihe is not None:
+			ueberschuss_resampled = common.resample_dataframe(
+				ueberschuss_datenreihe.df.set_index("Datum von")["Überschuss"], res_name
+			)
+			ueberschuss_plot = ueberschuss_resampled.reindex(df_resampled.index, method="ffill")
+
+			fig.add_trace(
+				Scatter(
+					x=ueberschuss_plot.index,
+					y=ueberschuss_plot.values,
+					name="Überschuss (abgeschnittene erneuerbare)",
+					mode="lines",
+					line=dict(color="red", width=2, dash="dot"),
+					hovertemplate="%{y:,.0f} MW<extra>Überschuss</extra>",
+					visible=visible,
+					legendgroup=f"ueberschuss_{res_idx}",
+					showlegend=show_in_legend,
+				)
+			)
+
 	# Meilensteine hinzufügen
 	smard_end = common.get_smard_end(smard)
 	milestones = common.collect_milestone_times(ausbaupfad)
@@ -114,7 +136,9 @@ def build_plot(
 
 	# Dropdown-Menü für Auflösungen
 	has_demand = verbrauch_series is not None and not verbrauch_series.empty
-	traces_per_resolution = num_generators + 1 + (1 if has_demand else 0)
+	traces_per_resolution = (
+		num_generators + 1 + (1 if has_demand else 0) + (1 if ueberschuss_datenreihe else 0)
+	)
 
 	buttons = [
 		dict(

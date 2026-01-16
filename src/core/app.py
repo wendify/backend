@@ -73,7 +73,7 @@ class App:
 		print("\n=== Schritt 4: Stack-Modell anwenden ===")
 		step_start = time.time()
 
-		realisiert = stack.apply_stack_model(ausbaupfad, self.smard)
+		realisiert, ueberschuss = stack.apply_stack_model(ausbaupfad, self.smard)
 		step_duration = time.time() - step_start
 
 		print(f"Stack-Modell angewendet in {step_duration:.2f} Sekunden")
@@ -94,7 +94,7 @@ class App:
 		step_start = time.time()
 
 		# Alle Plots im Browser anzeigen
-		plots.show_all(ausbaupfad, realisiert, co2_df, self.smard)
+		plots.show_all(ausbaupfad, realisiert, ueberschuss, co2_df, self.smard)
 
 		step_duration = time.time() - step_start
 		total_duration = time.time() - total_start

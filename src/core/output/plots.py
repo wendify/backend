@@ -13,6 +13,7 @@ from core.setup.smard import Smard
 def show_all(
 	ausbaupfad: Ausbaupfad,
 	realisiert: dict[ErzeugerArt, Datenreihe[ErzeugerArt]],
+	ueberschuss: Datenreihe[str],
 	co2_df: DataFrame,
 	smard: Smard,
 ) -> None:
@@ -25,7 +26,7 @@ def show_all(
 	# Plot 2
 	logging.info("Plot 2 wird geöffnet: Stack-Modell")
 
-	fig_stack = stack.build_plot(ausbaupfad, realisiert, smard)
+	fig_stack = stack.build_plot(ausbaupfad, realisiert, ueberschuss, smard)
 	fig_stack.show()
 
 	# Plot 3
