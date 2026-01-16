@@ -1,0 +1,100 @@
+@startuml
+' Arrange diagram horizontally for readability
+left to right direction
+set namespaceSeparator .
+
+' =======================
+' ENUMS
+' =======================
+enum core.types.ErzeugerArt {
+    Biomasse
+    Braunkohle
+    Erdgas
+    Kernenergie
+    Photovoltaik
+    Pumpspeicher
+    SonstigeErneuerbare
+    SonstigeKonventionelle
+    Steinkohle
+    Wasserkraft
+    WindOffshore
+    WindOnshore
+}
+
+' =======================
+' TYPEDICTS
+' =======================
+class core.data.handler.Form {
+    +format: str
+    +language: str
+    +moduleIds: list[int]
+    +region: str
+    +resolution: str
+    +timestamp_from: int
+    +timestamp_to: int
+}
+class core.data.handler.Request {
+    +request_form: list[Form]
+}
+
+' =======================
+' CLASSES
+' =======================
+class core.app.App {
+    -smard: core.setup.smard.Smard
+    +__init__(): None
+    +run(): None
+}
+
+class core.datenreihe.Datenreihe {
+    +art: core.types.ErzeugerArt
+    +df: pandas.DataFrame
+    +__init__(art: ErzeugerArt, df: pandas.DataFrame)
+    +anfang: pandas.Series
+    +ende: pandas.Series
+    +werte: pandas.Series
+    +get_row(timestamp: datetime.datetime): pandas.Series
+}
+
+class core.erzeuger.Erzeuger {
+    +art: core.types.ErzeugerArt
+    +installiert: core.datenreihe.Datenreihe
+    +realisiert: core.datenreihe.Datenreihe
+    +normiert: core.datenreihe.Datenreihe
+    +__init__(art: ErzeugerArt, installiert: Datenreihe, realisiert: Datenreihe)
+}
+
+class core.setup.smard.Smard {
+    +erzeuger: list[core.erzeuger.Erzeuger]
+    +installiert: pandas.DataFrame
+    +realisiert: pandas.DataFrame
+    +__init__(): None
+    +create_erzeuger(): None
+    +get_erzeuger(art: core.types.ErzeugerArt): core.erzeuger.Erzeuger
+}
+
+' =======================
+' RELATIONSHIPS
+' =======================
+
+' App "has a" Smard (composition)
+core.app.App *-- core.setup.smard.Smard : smard
+
+' Smard "has many" Erzeuger (composition)
+core.setup.smard.Smard *-- "1..*" core.erzeuger.Erzeuger : erzeuger
+
+' Erzeuger "has" Datenreihe (composition)
+core.erzeuger.Erzeuger *-- core.datenreihe.Datenreihe : installiert
+core.erzeuger.Erzeuger *-- core.datenreihe.Datenreihe : realisiert
+core.erzeuger.Erzeuger *-- core.datenreihe.Datenreihe : normiert
+
+' Datenreihe "has" ErzeugerArt (attribute)
+core.datenreihe.Datenreihe o-- core.types.ErzeugerArt : art
+
+' Erzeuger "has" ErzeugerArt (attribute)
+core.erzeuger.Erzeuger o-- core.types.ErzeugerArt : art
+
+' Handler TypedDicts
+core.data.handler.Request *-- core.data.handler.Form : request_form
+
+@enduml

@@ -1,16 +1,26 @@
 [project]
 name = "backend"
 version = "0.1.0"
-dependencies = ["requests"]
+dependencies = [
+	"coloredlogs",
+	"dotenv",
+	"fastapi",
+	"matplotlib",
+	"pandas",
+	"requests",
+	"ruff",
+	"uvicorn",
+	"streamlit",
+]
 
 [project.scripts]
 main = "main:main"
 
 [tool.ruff]
-line-length = 120
+line-length = 100
 
 [tool.ruff.format]
 indent-style = "tab"
 
 [tool.ruff.lint]
-extend-select = ["ANN", "I"]
+extend-select = ["ANN", "I", "RSE"]

@@ -1,12 +1,13 @@
-import operator
-
-import erzeuger
-import smard
+from core import logger
+from core.app import App
 
 
 def main() -> None:
-	wochen = smard.Smard.wochen(erzeuger.ErzeugerArt.Photovoltaik)
-	werte = smard.Smard.werte(erzeuger.ErzeugerArt.Photovoltaik, wochen[-1])
+	logger.setup()
 
-	zeit, wert = max(werte.items(), key=operator.itemgetter(1))
-	print("Maximaler PV-Wert diese Woche:", zeit, "-", wert)
+	app = App()
+	app.run()
+
+
+if __name__ == "__main__":
+	main()
