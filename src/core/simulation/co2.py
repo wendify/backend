@@ -26,7 +26,7 @@ def calculate_emissions(
 
 	# Emissionen für jeden Erzeuger berechnen und hinzufügen
 	for art, reihe in realisiert.items():
-		result[art] = reihe.werte.values * art.emissionen * step
+		result[art] = reihe.werte.to_numpy() * art.emissionen * step
 
 	# Endresultat zurückgeben
 	return result

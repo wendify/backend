@@ -76,7 +76,7 @@ def build_plot(
 		fig.add_trace(
 			Scatter(
 				x=total_co2.index,
-				y=total_co2.values,
+				y=total_co2.to_numpy(),
 				name="Gesamt CO2",
 				mode="lines",
 				line=dict(color="black", width=3),

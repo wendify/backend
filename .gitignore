@@ -5,9 +5,6 @@
 # Konfiguration
 .env
 
-# PyCharm-Müll
-.idea
-
 # Python-Müll
 *.egg-info
 __pycache__

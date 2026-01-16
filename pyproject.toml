@@ -1,7 +1,10 @@
 [project]
 name = "wendify"
 version = "0.1.0"
-dependencies = ["coloredlogs", "dotenv", "pandas", "plotly", "requests", "ruff"]
+dependencies = ["coloredlogs", "dotenv", "pandas", "plotly", "requests"]
+
+[project.optional-dependencies]
+dev = ["ruff"]
 
 [project.scripts]
 wendify = "main:main"
@@ -13,4 +16,4 @@ line-length = 100
 indent-style = "tab"
 
 [tool.ruff.lint]
-extend-select = ["ANN", "I", "RET", "RSE"]
+extend-select = ["ANN", "I", "PD", "RET", "RSE"]

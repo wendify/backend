@@ -72,8 +72,8 @@ def calculate_realized(
 	# Numpy-Arrays für schnelle Berechnung
 	max_verfuegbar_array = numpy.zeros((anzahl_zeitschritte, anzahl_erzeuger), dtype=float)
 	for index, erzeuger_art in enumerate(alle_erzeuger):
-		max_verfuegbar_array[:, index] = max_verfuegbar_df[erzeuger_art].values.astype(float)
-	verbrauch_array = verbrauch_werte.values.astype(float)
+		max_verfuegbar_array[:, index] = max_verfuegbar_df[erzeuger_art].to_numpy().astype(float)
+	verbrauch_array = verbrauch_werte.to_numpy().astype(float)
 
 	vorherige_erzeugung = numpy.zeros(anzahl_erzeuger, dtype=float)
 	if previous_realisiert is not None:

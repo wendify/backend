@@ -68,7 +68,7 @@ def build_plot(
 		fig.add_trace(
 			Scatter(
 				x=total_realized.index,
-				y=total_realized.values,
+				y=total_realized.to_numpy(),
 				name="Gesamterzeugung (realisiert)",
 				mode="lines",
 				line=dict(color="darkgray", width=3),
@@ -89,7 +89,7 @@ def build_plot(
 			fig.add_trace(
 				Scatter(
 					x=demand_plot.index,
-					y=demand_plot.values,
+					y=demand_plot.to_numpy(),
 					name="Verbrauch/Bedarf",
 					mode="lines",
 					line=dict(color="black", width=2, dash="dash"),
@@ -110,7 +110,7 @@ def build_plot(
 			fig.add_trace(
 				Scatter(
 					x=ueberschuss_plot.index,
-					y=ueberschuss_plot.values,
+					y=ueberschuss_plot.to_numpy(),
 					name="Überschuss (abgeschnittene erneuerbare)",
 					mode="lines",
 					line=dict(color="red", width=2, dash="dot"),

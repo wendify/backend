@@ -344,7 +344,7 @@ def create_prognose_erzeuger(
 		result_df = DataFrame()
 		result_df["Datum von"] = time_grid["Datum von"]
 		result_df["Datum bis"] = time_grid["Datum bis"]
-		result_df[art] = prognosis_series.values
+		result_df[art] = prognosis_series.to_numpy()
 
 		# Füge zur Ergebnisliste hinzu
 		result.append(Datenreihe(art, result_df))
@@ -437,7 +437,7 @@ def create_prognose_verbraucher(
 		result_df = DataFrame()
 		result_df["Datum von"] = time_grid["Datum von"]
 		result_df["Datum bis"] = time_grid["Datum bis"]
-		result_df[art] = prognosis_series.values
+		result_df[art] = prognosis_series.to_numpy()
 
 		# Füge zur Ergebnisliste hinzu
 		result.append(Datenreihe(art, result_df))
