@@ -1,56 +1,49 @@
 import logging
-import pathlib
-import sys
+from pathlib import Path
 
 import pandas
+from pandas import DataFrame
 
 import config
 from core.data import handler
 
 
-def load_csv() -> tuple[pandas.DataFrame, pandas.DataFrame, pandas.DataFrame]:
+# Lädt alle nötigen CSV-Dateien für SMARD
+def load_csv() -> tuple[DataFrame, DataFrame, DataFrame]:
 	if not config.INSTALLIERT_FILE.exists():
 		ids = [id + 3_000_000 for id in config.INSTALLIERT_IDS]
-
-		logging.info(f"Lädt herunter: {config.INSTALLIERT_FILE}")
-		handler.download(config.INSTALLIERT_FILE, ids)
+		handler.download(ids, config.INSTALLIERT_FILE)
 
 	if not config.REALISIERT_FILE.exists():
 		ids = [id + 1_000_000 for id in config.REALISIERT_IDS]
-
-		logging.info(f"Lädt herunter: {config.REALISIERT_FILE}")
-		handler.download(config.REALISIERT_FILE, ids)
+		handler.download(ids, config.REALISIERT_FILE)
 
 	if not config.VERBRAUCHT_FILE.exists():
 		ids = [id + 5_000_000 for id in config.VERBRAUCHT_IDS]
-
-		logging.info(f"Lädt herunter: {config.VERBRAUCHT_FILE}")
-		handler.download(config.VERBRAUCHT_FILE, ids)
+		handler.download(ids, config.VERBRAUCHT_FILE)
 
 	installiert = read_csv(config.INSTALLIERT_FILE)
 	realisiert = read_csv(config.REALISIERT_FILE)
 	verbraucht = read_csv(config.VERBRAUCHT_FILE)
 
-	rename_columns(installiert)
-	rename_columns(realisiert)
-	rename_columns(verbraucht)
-
 	return installiert, realisiert, verbraucht
 
 
-def read_csv(path: pathlib.Path) -> pandas.DataFrame:
+# Lädt eine einzelne CSV-Datei, auch wiederverwendbar für Ausbaupfade
+def read_csv(path: Path) -> DataFrame:
+	logging.debug(f"CSV-Datei wird gelesen: {path}")
+
 	try:
 		df = pandas.read_csv(path, decimal=",", na_values=["-"], sep=";", thousands=".").fillna(0)
 	except FileNotFoundError:
-		logging.error(f"CSV-Datei nicht gefunden: {path}")
-		sys.exit()
+		raise FileNotFoundError(f"CSV-Datei nicht gefunden: {path}")
 
+	# Zusätze wie [MW] oder [MWh] aus Spaltennamen streichen
+	df.columns = [column.split("[")[0].strip() for column in df.columns]
+
+	# Datumsspalten in Datumsobjekte parsen
 	for column in df.columns:
 		if column.startswith("Datum"):
 			df[column] = pandas.to_datetime(df[column], dayfirst=True)
 
 	return df
-
-
-def rename_columns(df: pandas.DataFrame) -> None:
-	df.columns = [column.split(" [")[0] for column in df.columns]

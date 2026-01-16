@@ -1,15 +1,15 @@
-import datetime
 import logging
-import pathlib
-import sys
-import typing
+from pathlib import Path
+from typing import TypedDict
 
 import requests
+from requests import HTTPError
 
 import config
 
 
-class Form(typing.TypedDict):
+# JSON-Format einer Teilanfrage
+class Form(TypedDict):
 	format: str
 	language: str
 	moduleIds: list[int]
@@ -19,19 +19,23 @@ class Form(typing.TypedDict):
 	timestamp_to: int
 
 
-class Request(typing.TypedDict):
+# JSON-Format einer ganzen Anfrage
+class Request(TypedDict):
 	request_form: list[Form]
 
 
-def download(path: pathlib.Path, ids: list[int]) -> None:
+# Lädt eine CSV-Datei von SMARD herunter
+def download(ids: list[int], path: Path) -> None:
+	logging.info(f"CSV-Datei wird heruntergeladen: {path}")
+
 	form: Form = {
 		"format": "CSV",
 		"language": "de",
 		"moduleIds": ids,
 		"region": "DE",
 		"resolution": "quarterhour",
-		"timestamp_from": int(datetime.datetime(2024, 1, 1).timestamp()) * 1000,
-		"timestamp_to": int(datetime.datetime(2025, 10, 31).timestamp()) * 1000,
+		"timestamp_from": int(config.SMARD_FROM.timestamp() * 1000),
+		"timestamp_to": int(config.SMARD_TO.timestamp() * 1000),
 	}
 
 	request: Request = {
@@ -39,9 +43,10 @@ def download(path: pathlib.Path, ids: list[int]) -> None:
 	}
 
 	with requests.post(config.SMARD_URL, json=request) as response:
+		# Bei HTTP-Fehler diesen ausgeben und beenden
 		if not response.ok:
-			logging.error(response.text)
-			sys.exit()
+			raise HTTPError(f"Herunterladen fehlgeschlagen: {response.text}")
 
+		# Inhalt in die angegebene Datei schreiben
 		with open(path, "wb") as file:
 			file.write(response.content)

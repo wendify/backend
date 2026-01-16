@@ -1,164 +1,103 @@
-"""
-Main application module.
-
-This is the entry point for the energy transition simulation.
-It orchestrates:
-1. SMARD data loading
-2. Scenario configuration
-3. Prognosis calculation (Ausbaupfad)
-4. Stack model simulation
-5. Visualization (Plotly in browser)
-"""
-
 import logging
 import time
 
-import fastapi
-import uvicorn
-
-import config
-from core.api import routes
-from core.datenreihe import Datenreihe
-from core.prognose.ausbaupfad import Ausbaupfad
-from core.scenarios import load_scenario
+from core.output import plots
+from core.prognose import loader
 from core.setup.smard import Smard
-from core.simulation.co2_calc import calculate_co2_emissions
-from core.simulation.simulator import apply_events_to_realized
-from core.simulation.stack_model import apply_stack_model_to_ausbaupfad
-from core.types import ErzeugerArt, VerbraucherArt
-from core.visualization import show_all_plots
+from core.simulation import co2, simulator, stack
 
 
+# Die Hauptklasse dieses Projekts
 class App:
-	"""
-	Main application class.
-	
-	Wires together:
-	- Data sources (SMARD)
-	- Scenarios (future capacity targets)
-	- Simulation (stack model)
-	- Visualization (Plotly interactive plots)
-	"""
-
 	def __init__(self) -> None:
-		"""Initialize the application with API and data source."""
-		self.api = fastapi.FastAPI()
+		# SMARD-Daten vor der Simulation laden
 		self.smard = Smard()
-		routes.setup(self.api, self.smard)
 
-	def start(self) -> None:
-		"""Start the API server."""
-		uvicorn.run(self.api, host=config.API_HOST, port=config.API_PORT, log_level="error")
-
+	# Startet die Simulation
 	def run(self) -> None:
-		"""Run the main simulation workflow."""
-		logging.info("Anwendung gestartet")
-		self.run_simulation()
-	
-	def run_simulation(self) -> None:
-		"""
-		Run the complete energy transition simulation:
-		
-		1. Load scenario (expansion targets)
-		2. Build Ausbaupfad (forecast time series)
-		3. Apply stack model (convert potential to realized generation)
-		4. Show interactive plots in browser
-		"""
 		logging.info("Simulation wird gestartet...")
+
+		# Gesamte Zeitmessung starten
 		total_start = time.time()
-		
-		# =====================================================================
-		# Step 1: Load scenario from CSV files
-		# =====================================================================
-		print("\n=== Schritt 1: Szenario laden ===")
-		szenario_name = "default"
-		datenpunkte, verbraucher_datenpunkte, event_datenpunkte = load_scenario(szenario_name, self.smard)
-		print(f"  Szenario '{szenario_name}' geladen")
-		print(f"  {len(datenpunkte)} Erzeuger-Datenpunkte")
-		print(f"  {len(verbraucher_datenpunkte)} Verbraucher-Datenpunkte")
-		print(f"  {len(event_datenpunkte)} Event-Datenpunkte")
-		
-		# =====================================================================
-		# Step 2: Build Ausbaupfad (forecast)
-		# =====================================================================
-		print("\n=== Schritt 2: Ausbaupfad erstellen ===")
+
+		# Schritt 1
+		print("\n=== Schritt 1: Ausbaupfade laden ===")
+		ausbaupfade = loader.load_all()
+
+		# Abbrechen, wenn keine Ausbaupfade existieren
+		if not ausbaupfade:
+			raise FileNotFoundError("Kein Ausbaupfad gefunden!")
+
+		# Wenn nur ein Ausbaupfad, diesen nehmen
+		if len(ausbaupfade) == 1:
+			ausbaupfad = ausbaupfade[0]
+
+		# Ansonsten durch Eingabe auswählen lassen
+		else:
+			names = ", ".join(sorted(a.name for a in ausbaupfade))
+			name = input(f"Ausbaupfad auswählen [{names}]: ")
+
+			try:
+				ausbaupfad = next(a for a in ausbaupfade if a.name == name)
+			except StopIteration:
+				raise FileNotFoundError("Ausbaupfad nicht gefunden!")
+
+		# Informationen zum Ausbaupfad ausgeben
+		print(f"Ausbaupfad ausgewählt: {ausbaupfad.name}")
+		print(f"Installationen: {len(ausbaupfad.installiert)}", end=", ")
+		print(f"Verbräuche: {len(ausbaupfad.verbraucht)}", end=", ")
+		print(f"Ereignisse: {len(ausbaupfad.ereignisse)}")
+
+		# Schritt 2
+		print("\n=== Schritt 2: Ausbaupfad verarbeiten ===")
 		step_start = time.time()
-		
-		ausbaupfad = Ausbaupfad(datenpunkte, verbraucher_datenpunkte, smard=self.smard)
-		
+
+		ausbaupfad.process(self.smard)
 		step_duration = time.time() - step_start
-		print(f"  Ausbaupfad erstellt in {step_duration:.2f} Sekunden")
-		print(f"  {len(ausbaupfad.prognose_datenreihen)} Prognose-Datenreihen")
-		
-		# =====================================================================
-		# Step 2.5: Apply Events to Prognose (before stack model)
-		# =====================================================================
-		if event_datenpunkte:
-			print("\n=== Schritt 2.5: Events auf Prognose anwenden ===")
-			step_start = time.time()
-			
-			# Konvertiere Liste zu Dict für Event-Anwendung
-			prognose_dict: dict[ErzeugerArt, Datenreihe] = {}
-			for datenreihe in ausbaupfad.prognose_datenreihen:
-				prognose_dict[datenreihe.art] = datenreihe
-			
-			# Events anwenden
-			modifizierte_prognose = apply_events_to_realized(
-				prognose_dict, event_datenpunkte
-			)
-			
-			# Zurück zu Liste konvertieren und Ausbaupfad aktualisieren
-			ausbaupfad.prognose_datenreihen = list(modifizierte_prognose.values())
-			
-			step_duration = time.time() - step_start
-			print(f"  {len(event_datenpunkte)} Events angewendet")
-			for event in event_datenpunkte:
-				print(f"    - {event.event_typ.value}: {event.datum_von.date()} bis {event.datum_bis.date()} (Intensität: {event.intensitaet})")
-			print(f"  Events dauerten: {step_duration:.2f} Sekunden")
-		
-		# =====================================================================
-		# Step 3: Apply stack model
-		# =====================================================================
-		print("\n=== Schritt 3: Stack-Modell anwenden ===")
+
+		print(f"Ausbaupfad erstellt in {step_duration:.2f} Sekunden")
+		print(f"Erzeuger-Datenreihen: {len(ausbaupfad.prognose_erzeuger)}", end=", ")
+		print(f"Verbraucher-Datenreihen: {len(ausbaupfad.prognose_verbraucher)}")
+
+		# Schritt 3
+		print("\n=== Schritt 3: Ereignisse auf Prognose anwenden ===")
 		step_start = time.time()
-		
-		realisiert_datenreihen = apply_stack_model_to_ausbaupfad(
-			ausbaupfad=ausbaupfad,
-			smard=self.smard,
-			verbrauch_art=VerbraucherArt.Netzlast,
-		)
-		
+
+		simulator.apply_events(ausbaupfad.prognose_erzeuger, ausbaupfad.ereignisse)
 		step_duration = time.time() - step_start
-		print(f"  Realisierte Erzeugung für {len(realisiert_datenreihen)} Erzeuger berechnet")
-		print(f"  Stack-Modell dauerte: {step_duration:.2f} Sekunden")
-		
-		# =====================================================================
-		# Step 3.5: CO2 Calculation
-		# =====================================================================
-		print("\n=== Schritt 3.5: CO2-Berechnung ===")
+
+		print(f"Ereignisse angewendet in {step_duration:.2f} Sekunden")
+		print(f"Ereignisse: {len(ausbaupfad.ereignisse)}")
+
+		# Schritt 4
+		print("\n=== Schritt 4: Stack-Modell anwenden ===")
 		step_start = time.time()
-		
-		co2_df = calculate_co2_emissions(realisiert_datenreihen)
-		
+
+		realisiert, ueberschuss = stack.apply_stack_model(ausbaupfad, self.smard)
 		step_duration = time.time() - step_start
-		print(f"  CO2-Daten für {len(co2_df.columns)} Erzeuger berechnet")
-		print(f"  CO2-Berechnung dauerte: {step_duration:.2f} Sekunden")
-		
-		# =====================================================================
-		# Step 4: Visualization (Plotly in browser)
-		# =====================================================================
-		print("\n=== Schritt 4: Visualisierung ===")
-		
+
+		print(f"Stack-Modell angewendet in {step_duration:.2f} Sekunden")
+		print(f"Erzeugte Datenreihen: {len(realisiert)}")
+
+		# Schritt 5
+		print("\n=== Schritt 5: CO2-Berechnung ===")
+		step_start = time.time()
+
+		co2_df = co2.calculate_emissions(realisiert)
+		step_duration = time.time() - step_start
+
+		print(f"CO2-Emissionen berechnet in {step_duration:.2f} Sekunden")
+		print(f"Erzeugte Datenreihen: {len(co2_df.columns)}")
+
+		# Schritt 6
+		print("\n=== Schritt 6: Visualisierung im Browser ===")
+		step_start = time.time()
+
+		# Alle Plots im Browser anzeigen
+		plots.show_all(ausbaupfad, realisiert, ueberschuss, co2_df, self.smard)
+
+		step_duration = time.time() - step_start
 		total_duration = time.time() - total_start
-		print(f"\n=== Gesamtdauer: {total_duration:.2f} Sekunden ({total_duration/60:.2f} Minuten) ===\n")
-		
-		# Show interactive Plotly plots in browser
-		show_all_plots(
-			ausbaupfad=ausbaupfad,
-			realisiert_datenreihen=realisiert_datenreihen,
-			datenpunkte=datenpunkte,
-			smard=self.smard,
-			co2_df=co2_df,
-			default_resolution="1 Woche",
-			debug_art=ErzeugerArt.Steinkohle,
-		)
+
+		print(f"Plots generiert in {step_duration:.2f} Sekunden")
+		print(f"\n=== Gesamtdauer: {total_duration:.2f} Sekunden ===")

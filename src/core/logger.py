@@ -1,5 +1,5 @@
 import logging
-import os
+from datetime import datetime
 
 import coloredlogs
 
@@ -11,24 +11,12 @@ def setup() -> None:
 	# Root-Logger holen
 	logger = logging.getLogger()
 
-	# Trennzeile in Datei schreiben, falls existent
-	if config.LOG_FILE.exists():
-		with open(config.LOG_FILE, "r+") as file:
-			lines = file.readlines()
-
-			if lines and not lines[-1].startswith("-"):
-				file.seek(0, os.SEEK_END)
-				file.write("-" * 60 + "\n")
+	# Trennzeile mit momentanem Datum in Datei schreiben
+	with open(config.LOG_FILE, "a") as file:
+		print("-" * 40, datetime.now().replace(microsecond=0), "-" * 40, file=file)
 
 	# Farbige Logs in der Konsole installieren
-	styles = {
-		"debug": {"color": "blue"},
-		"error": {"color": "red"},
-		"info": {"color": "green"},
-		"warning": {"color": "yellow"},
-	}
-
-	coloredlogs.install(fmt="[%(levelname)s] %(message)s", level_styles=styles)
+	coloredlogs.install(fmt="[%(levelname)s] %(message)s", level=config.LOG_LEVEL)
 
 	# Logs in der Log-Datei installieren
 	format = "[%(asctime)s] [%(filename)s:%(lineno)d] [%(levelname)s] %(message)s"
@@ -39,4 +27,4 @@ def setup() -> None:
 
 	# Logger anpassen
 	logger.addHandler(handler)
-	logger.setLevel(config.LOG_LEVEL)
+	logger.debug("Logger ist fertig eingerichtet!")

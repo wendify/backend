@@ -1,31 +1,29 @@
-import logging
-from datetime import datetime
+from typing import Self
 
 from pandas import DataFrame, Series
 
 
+# Abstraktion über SMARD-DataFrames
 class Datenreihe[T]:
 	def __init__(self, art: T, df: DataFrame) -> None:
 		self.art = art
 		self.df = df
 
+	# Spalte der Anfangsdaten
 	@property
 	def anfang(self) -> Series:
 		return self.df["Datum von"]
 
+	# Spalte der Enddaten
 	@property
 	def ende(self) -> Series:
 		return self.df["Datum bis"]
 
+	# Spalte der tatsächlichen Werte
 	@property
 	def werte(self) -> Series:
 		return self.df[self.art]
 
-	def get_row(self, timestamp: datetime) -> Series:
-		result = self.df[(self.anfang <= timestamp) & (self.ende > timestamp)]
-
-		if result.empty:
-			logging.error(f"Kein Eintrag für {self.art}: {timestamp}")
-			raise KeyError(timestamp)
-
-		return result.iloc[0]
+	# Kopiert diese Datenreihe zur Modifizierung
+	def copy(self) -> Self:
+		return type(self)(self.art, self.df.copy())
